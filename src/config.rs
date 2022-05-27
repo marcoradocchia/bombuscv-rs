@@ -1,0 +1,170 @@
+use crate::args::Args;
+use directories::BaseDirs;
+use serde::Deserialize;
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
+use validator::{Validate, ValidationError};
+
+/// Validate video resolution config option.
+fn validate_resolution(resolution: &str) -> Result<(), ValidationError> {
+    let valid_resolutions = [
+        "480p", "576p", "720p", "768p", "900p", "1080p", "1440p", "2160p",
+    ];
+
+    if !valid_resolutions.contains(&resolution) {
+        return Err(ValidationError::new(&"possible_value"));
+    }
+    Ok(())
+}
+
+/// Validate output video directory.
+fn validate_directory(path: &PathBuf) -> Result<(), ValidationError> {
+    if !path.is_dir() {
+        return Err(ValidationError::new(&"path"));
+    }
+    Ok(())
+}
+
+/// Default value for /dev/video<index> capture camera index.
+fn default_index() -> u8 {
+    0
+}
+
+/// Default value for video framerate.
+fn default_framerate() -> f64 {
+    60.
+}
+
+/// Dafault value for video resolution.
+fn default_resolution() -> String {
+    String::from("480p")
+}
+
+/// Default output video directory.
+fn default_directory() -> PathBuf {
+    match BaseDirs::new() {
+        Some(base_dirs) => base_dirs.home_dir().to_path_buf(),
+        None => panic!("unable to find home directory"),
+    }
+}
+
+/// Configuration options.
+#[derive(Deserialize, Validate, Debug)]
+pub struct Config {
+    /// /dev/video<index> capture camera index.
+    #[serde(default = "default_index")]
+    pub index: u8,
+
+    /// Video framerate.
+    #[validate(range(min = 1.0, message = "invalid framerate (must be >1.0)"))]
+    #[serde(default = "default_framerate")]
+    pub framerate: f64,
+
+    /// Video resolution (standard 16:9 formats).
+    #[validate(custom(function = "validate_resolution", message = "invalid resolution value"))]
+    #[serde(default = "default_resolution")]
+    pub resolution: String,
+
+    /// Output video directory.
+    #[validate(custom(
+        function = "validate_directory",
+        message = "given path is not a directory"
+    ))]
+    #[serde(default = "default_directory")]
+    pub directory: PathBuf,
+
+    /// Enable Date/Time video overlay.
+    #[serde(default)]
+    pub overlay: bool,
+
+    /// Mute standard output.
+    #[serde(default)]
+    pub quiet: bool,
+}
+
+/// Implement the Default trait for Config.
+impl Default for Config {
+    /// Default configuration.
+    fn default() -> Self {
+        Self {
+            index: default_index(),
+            framerate: default_framerate(),
+            resolution: default_resolution(),
+            directory: default_directory(),
+            overlay: false,
+            quiet: false,
+        }
+    }
+}
+
+impl Config {
+    /// Parse configuration from config file.
+    pub fn parse() -> Self {
+        if let Some(base_dirs) = BaseDirs::new() {
+            // Lin: /home/alice/.config/
+            // Win: C:\Users\Alice\AppData\Roaming\
+            // Mac: /Users/Alice/Library/Application Support/
+            let config_dir = base_dirs.config_dir();
+
+            let config_file =
+                fs::read_to_string(config_dir.join(Path::new("bombuscv/config.toml")))
+                    .unwrap_or("".to_string());
+
+            let config = match toml::from_str(&config_file) {
+                Err(e) => {
+                    eprintln!("error: broken config '{}', using defaults", e.to_string());
+                    Config::default()
+                }
+                Ok(config) => config,
+            };
+
+            // if values passed the parsing, validate config values
+            match config.validate() {
+                // if values pass validation, return parsed configuration
+                Ok(_) => config,
+                // if values don't pass validation, return default configuration
+                Err(errors) => {
+                    // TODO: not very elegant
+                    // gather all the invalid value into a sting and display it as an error message
+                    let mut error_msg =
+                        String::from("error: invalid configuration options, using defaults\n");
+                    for error in errors.field_errors() {
+                        let msg = &error.1.first().unwrap().message;
+                        error_msg.push_str(&format!("-> {}: {}\n", error.0, msg.as_ref().unwrap()));
+                    }
+                    eprintln!("{}", error_msg.strip_suffix("\n").unwrap_or_default());
+
+                    Config::default()
+                }
+            }
+        } else {
+            eprintln!("warning: no valid config path found on the system, using defaults");
+            Config::default()
+        }
+    }
+
+    /// Override configuration with command line arguments.
+    pub fn override_with_args(mut self, args: Args) -> Self {
+        if let Some(index) = args.index {
+            self.index = index;
+        }
+        if let Some(framerate) = args.framerate {
+            self.framerate = framerate;
+        }
+        if let Some(resolution) = args.resolution {
+            self.resolution = resolution;
+        }
+        if let Some(directory) = args.directory {
+            self.directory = directory;
+        }
+        if args.overlay {
+            self.overlay = true;
+        }
+        if args.quiet {
+            self.quiet = true;
+        }
+        self
+    }
+}
