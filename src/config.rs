@@ -14,15 +14,15 @@ fn validate_resolution(resolution: &str) -> Result<(), ValidationError> {
     ];
 
     if !valid_resolutions.contains(&resolution) {
-        return Err(ValidationError::new(&"possible_value"));
+        return Err(ValidationError::new("possible_value"));
     }
     Ok(())
 }
 
 /// Validate output video directory.
-fn validate_directory(path: &PathBuf) -> Result<(), ValidationError> {
+fn validate_directory(path: &Path) -> Result<(), ValidationError> {
     if !path.is_dir() {
-        return Err(ValidationError::new(&"path"));
+        return Err(ValidationError::new("path"));
     }
     Ok(())
 }
@@ -110,11 +110,11 @@ impl Config {
 
             let config_file =
                 fs::read_to_string(config_dir.join(Path::new("bombuscv/config.toml")))
-                    .unwrap_or("".to_string());
+                    .unwrap_or_default();
 
             let config = match toml::from_str(&config_file) {
                 Err(e) => {
-                    eprintln!("error: broken config '{}', using defaults", e.to_string());
+                    eprintln!("error: broken config '{}', using defaults", e);
                     Config::default()
                 }
                 Ok(config) => config,
@@ -134,7 +134,8 @@ impl Config {
                         let msg = &error.1.first().unwrap().message;
                         error_msg.push_str(&format!("-> {}: {}\n", error.0, msg.as_ref().unwrap()));
                     }
-                    eprintln!("{}", error_msg.strip_suffix("\n").unwrap_or_default());
+                    error_msg.pop(); // remove last new line
+                    eprintln!("{}", error_msg);
 
                     Config::default()
                 }

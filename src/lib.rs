@@ -25,54 +25,38 @@ impl ResConversion for Size {
     /// Convert from string to opencv::core::Size using the standard 16:9 formats.
     fn from_str(res: &str) -> Self {
         match res {
-            "480p" => {
-                return Size {
-                    width: 854,
-                    height: 480,
-                }
-            }
-            "576p" => {
-                return Size {
-                    width: 1024,
-                    height: 576,
-                }
-            }
-            "720p" => {
-                return Size {
-                    width: 1280,
-                    height: 720,
-                }
-            }
-            "768p" => {
-                return Size {
-                    width: 1366,
-                    height: 768,
-                }
-            }
-            "900p" => {
-                return Size {
-                    width: 1600,
-                    height: 900,
-                }
-            }
-            "1080p" => {
-                return Size {
-                    width: 1920,
-                    height: 1080,
-                }
-            }
-            "1440p" => {
-                return Size {
-                    width: 2560,
-                    height: 1440,
-                }
-            }
-            "2160p" => {
-                return Size {
-                    width: 3840,
-                    height: 2160,
-                }
-            }
+            "480p" => Size {
+                width: 854,
+                height: 480,
+            },
+            "576p" => Size {
+                width: 1024,
+                height: 576,
+            },
+            "720p" => Size {
+                width: 1280,
+                height: 720,
+            },
+            "768p" => Size {
+                width: 1366,
+                height: 768,
+            },
+            "900p" => Size {
+                width: 1600,
+                height: 900,
+            },
+            "1080p" => Size {
+                width: 1920,
+                height: 1080,
+            },
+            "1440p" => Size {
+                width: 2560,
+                height: 1440,
+            },
+            "2160p" => Size {
+                width: 3840,
+                height: 2160,
+            },
             res => panic!("{} is not a valid resolution", res),
         }
     }
@@ -152,10 +136,8 @@ impl Grabber {
     pub fn grab(&mut self) -> Frame {
         // Capture frame.
         let mut frame = Mat::default();
-        if let Err(_) = self.cap.read(&mut frame) {
-            if !self.quiet {
-                println!("warning: cap frame dropped")
-            }
+        if self.cap.read(&mut frame).is_err() && !self.quiet {
+            println!("warning: cap frame dropped")
         }
 
         Frame {
@@ -260,6 +242,13 @@ impl MotionDetector {
     }
 }
 
+/// Implement Default trait for MotionDetector.
+impl Default for MotionDetector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Video frame writer.
 ///
 /// # Fields
@@ -307,10 +296,10 @@ impl Writer {
     /// Write frame to the video file.
     pub fn write(&mut self, mut frame: Frame) {
         // Add date&time overlay.
-        if self.overlay {
-            if let Err(_) = put_text(
+        if self.overlay
+            && put_text(
                 &mut frame.frame,
-                &mut frame.datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
+                &frame.datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
                 Point { x: 10, y: 40 }, // Bottom-left corner of the text string in the image.
                 FONT_HERSHEY_DUPLEX,    // Font type, see #hersheyfonts.
                 1., // Font scale factor that is multiplied by the font-specific base size.
@@ -320,18 +309,16 @@ impl Writer {
                 // true -> image data origin bottom-left corner
                 // false -> top-left corner.
                 false,
-            ) {
-                if !self.quiet {
-                    println!("warning: unable to print text overlay")
-                };
-            };
-        }
+            )
+            .is_err()
+            && !self.quiet
+        {
+            println!("warning: unable to print text overlay")
+        };
 
         // Write frame to video file.
-        if let Err(_) = self.writer.write(&frame.frame) {
-            if !self.quiet {
-                println!("warning: frame dropped");
-            }
+        if self.writer.write(&frame.frame).is_err() && !self.quiet {
+            println!("warning: frame dropped");
         }
     }
 }

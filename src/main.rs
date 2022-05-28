@@ -57,7 +57,7 @@ fn main() {
     );
 
     // Instance of the motion detector.
-    // let _detector = MotionDetector::new();
+    let _detector = MotionDetector::new();
 
     let mut frames: Vec<Frame> = Vec::new();
     for _ in 0..100 {
