@@ -114,7 +114,7 @@ impl Config {
 
             let config = match toml::from_str(&config_file) {
                 Err(e) => {
-                    eprintln!("error: broken config '{}', using defaults", e);
+                    eprintln!("error: broken config '{e}', using defaults");
                     Config::default()
                 }
                 Ok(config) => config,
@@ -130,9 +130,9 @@ impl Config {
                     // gather all the invalid value into a sting and display it as an error message
                     let mut error_msg =
                         String::from("error: invalid configuration options, using defaults\n");
-                    for error in errors.field_errors() {
-                        let msg = &error.1.first().unwrap().message;
-                        error_msg.push_str(&format!("-> {}: {}\n", error.0, msg.as_ref().unwrap()));
+                    for err in errors.field_errors() {
+                        let msg = &err.1.first().unwrap().message;
+                        error_msg.push_str(&format!("-> {}: {}\n", err.0, msg.as_ref().unwrap()));
                     }
                     error_msg.pop(); // remove last new line
                     eprintln!("{}", error_msg);

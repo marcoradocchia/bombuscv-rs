@@ -25,39 +25,15 @@ impl ResConversion for Size {
     /// Convert from string to opencv::core::Size using the standard 16:9 formats.
     fn from_str(res: &str) -> Self {
         match res {
-            "480p" => Size {
-                width: 854,
-                height: 480,
-            },
-            "576p" => Size {
-                width: 1024,
-                height: 576,
-            },
-            "720p" => Size {
-                width: 1280,
-                height: 720,
-            },
-            "768p" => Size {
-                width: 1366,
-                height: 768,
-            },
-            "900p" => Size {
-                width: 1600,
-                height: 900,
-            },
-            "1080p" => Size {
-                width: 1920,
-                height: 1080,
-            },
-            "1440p" => Size {
-                width: 2560,
-                height: 1440,
-            },
-            "2160p" => Size {
-                width: 3840,
-                height: 2160,
-            },
-            res => panic!("{} is not a valid resolution", res),
+            "480p" => Size::new(854, 480),
+            "576p" => Size::new(1024, 576),
+            "720p" => Size::new(1280, 720),
+            "768p" => Size::new(1366, 768),
+            "900p" => Size::new(1600, 900),
+            "1080p" => Size::new(1920, 1080),
+            "1440p" => Size::new(2560, 1440),
+            "2160p" => Size::new(3840, 2160),
+            res => panic!("{res} is not a valid resolution"),
         }
     }
 }
@@ -126,7 +102,7 @@ impl Grabber {
         // Construct the VideoCapture object.
         let cap = match VideoCapture::new_with_params(index, CAP_V4L2, &params) {
             Ok(cap) => cap,
-            Err(e) => panic!("unable to open camera {:?}", e),
+            Err(e) => panic!("unable to open camera '{e}'"),
         };
 
         Self { cap, quiet }
@@ -283,7 +259,7 @@ impl Writer {
         // Construct the VideoWriter object.
         let writer = match VideoWriter::new(video_path, codec.fourcc(), fps, res, true) {
             Ok(writer) => writer,
-            Err(e) => panic!("unable to create video writer {:?}", e),
+            Err(e) => panic!("unable to create video writer {e}"),
         };
 
         Self {
