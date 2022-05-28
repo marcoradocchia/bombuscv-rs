@@ -4,6 +4,7 @@ use serde::Deserialize;
 use std::{
     fs,
     path::{Path, PathBuf},
+    process,
 };
 use validator::{Validate, ValidationError};
 
@@ -46,7 +47,10 @@ fn default_resolution() -> String {
 fn default_directory() -> PathBuf {
     match BaseDirs::new() {
         Some(base_dirs) => base_dirs.home_dir().to_path_buf(),
-        None => panic!("unable to find home directory"),
+        None => {
+            eprintln!("error: unable to find home directory");
+            process::exit(1);
+        }
     }
 }
 

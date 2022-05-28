@@ -12,9 +12,10 @@ use opencv::{
     prelude::{Mat, MatTraitConst},
     videoio::{
         VideoCapture, VideoCaptureTrait, VideoWriter, VideoWriterTrait, CAP_PROP_FPS,
-        CAP_PROP_FRAME_HEIGHT, CAP_PROP_FRAME_WIDTH, CAP_V4L2,
+        CAP_PROP_FRAME_HEIGHT, CAP_PROP_FRAME_WIDTH, CAP_V4L2
     },
 };
+use std::process;
 
 /// Trait implementations for resolution conversions.
 pub trait ResConversion {
@@ -33,7 +34,10 @@ impl ResConversion for Size {
             "1080p" => Size::new(1920, 1080),
             "1440p" => Size::new(2560, 1440),
             "2160p" => Size::new(3840, 2160),
-            res => panic!("{res} is not a valid resolution"),
+            res => {
+                eprintln!("error: {res} is not a valid resolution");
+                process::exit(1);
+            }
         }
     }
 }
@@ -42,8 +46,7 @@ impl ResConversion for Size {
 pub enum Codec {
     MJPG,
     XVID,
-    YUYV,
-    H264,
+    MP4V
 }
 
 impl Codec {
@@ -52,8 +55,7 @@ impl Codec {
         match *self {
             Codec::MJPG => VideoWriter::fourcc('M' as i8, 'J' as i8, 'P' as i8, 'G' as i8).unwrap(),
             Codec::XVID => VideoWriter::fourcc('X' as i8, 'V' as i8, 'I' as i8, 'D' as i8).unwrap(),
-            Codec::YUYV => VideoWriter::fourcc('Y' as i8, 'U' as i8, 'Y' as i8, 'V' as i8).unwrap(),
-            Codec::H264 => VideoWriter::fourcc('H' as i8, '2' as i8, '6' as i8, '4' as i8).unwrap(),
+            Codec::MP4V => VideoWriter::fourcc('m' as i8, 'p' as i8, '4' as i8, 'v' as i8).unwrap(),
         }
     }
 }
@@ -102,7 +104,10 @@ impl Grabber {
         // Construct the VideoCapture object.
         let cap = match VideoCapture::new_with_params(index, CAP_V4L2, &params) {
             Ok(cap) => cap,
-            Err(e) => panic!("unable to open camera '{e}'"),
+            Err(e) => {
+                eprintln!("unable to open camera '{e}'");
+                process::exit(1);
+            }
         };
 
         Self { cap, quiet }
@@ -164,13 +169,9 @@ impl MotionDetector {
         gaussian_blur(
             &frame_two,
             &mut frame_one,
-            Size {
-                // Kernel Size.
-                width: 3,
-                height: 3,
-            },
-            21., // Gaussian kernel standard deviation in x direction.
-            21., // Gaussian kernel standard deviation in y direction.
+            Size::new(3, 3), // Kernel Size.
+            21.,             // Gaussian kernel standard deviation in x direction.
+            21.,             // Gaussian kernel standard deviation in y direction.
             BORDER_DEFAULT,
         )
         .unwrap();
@@ -191,9 +192,9 @@ impl MotionDetector {
             &mut frame_two,
             // TODO: check structuring element.
             &Mat::default(), // Structuring element used for dilation; If elemenat=Mat(), a 3 x 3 rectangular structuring element is used.
-            Point { x: -1, y: -1 }, // Position of the anchor within the element; default value (-1, -1) means that the anchor is at the element center.
-            3,                      // Number of times dilation is applied.
-            BORDER_CONSTANT,        // Pixel extrapolation method, see #BorderTypes.
+            Point::new(-1, -1), // Position of the anchor within the element; default value (-1, -1) means that the anchor is at the element center.
+            3,                  // Number of times dilation is applied.
+            BORDER_CONSTANT,    // Pixel extrapolation method, see #BorderTypes.
             morphology_default_border_value().unwrap(), // Border value in case of a constant border.
         )
         .unwrap();
@@ -205,7 +206,7 @@ impl MotionDetector {
             &mut frame_one, // Detected contours. Each contour is stored as a vector of points (e.g. std::vector<std::vectorcv::Point >).
             RETR_EXTERNAL,  // Contour retrieval mode, see #RetrievalModes.
             CHAIN_APPROX_SIMPLE, // Contour approximation method, see #ContourApproximationModes.
-            Point { x: 0, y: 0 }, // Optional offset by which every contour point is shifted.
+            Point::new(0, 0), // Optional offset by which every contour point is shifted.
         )
         .unwrap();
 
@@ -259,7 +260,10 @@ impl Writer {
         // Construct the VideoWriter object.
         let writer = match VideoWriter::new(video_path, codec.fourcc(), fps, res, true) {
             Ok(writer) => writer,
-            Err(e) => panic!("unable to create video writer {e}"),
+            Err(e) => {
+                eprintln!("unable to create video writer {e}");
+                process::exit(1);
+            }
         };
 
         Self {

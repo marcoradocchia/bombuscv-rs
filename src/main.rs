@@ -14,6 +14,9 @@
 // You should have received a copy of the GNU General Public License along with
 // this program. If not, see https://www.gnu.org/licenses/.
 
+#[cfg(test)]
+mod test;
+
 mod args;
 mod config;
 
@@ -21,6 +24,8 @@ use args::{Args, Parser};
 use bombuscv_rs::{Codec, Grabber, MotionDetector, Writer, Frame};
 use chrono::Local;
 use config::Config;
+use std::thread;
+use std::sync::mpsc;
 
 fn main() {
     // Parse CLI arguments
@@ -46,31 +51,24 @@ fn main() {
         config.quiet,
     );
 
+    // Instance of the motion detector.
+    let detector = MotionDetector::new();
+
     // Instance of the frame writer.
     let mut writer = Writer::new(
         &config.resolution,
         config.framerate,
         &filename,
-        Codec::MJPG,
+        Codec::XVID,
         config.overlay,
         config.quiet,
     );
 
-    // Instance of the motion detector.
-    let _detector = MotionDetector::new();
+    // Packet size in number of frames corresponding to 5 seconds of video.
+    let packsize: u8 = (config.framerate * 5.) as u8;
 
-    let mut frames: Vec<Frame> = Vec::new();
-    for _ in 0..100 {
-        frames.push(grabber.grab());
-    }
-
-    for frame in frames {
-        writer.write(frame);
-    }
-
-    // for i in 0..50 {
-    //     let frame = grabber.grab();
-    //     // writer.write(frame);
-    //     println!("{}", i);
+    // for _ in 0..100 {
+    //     let frame = _grabber.grab();
+    //     _writer.write(frame);
     // }
 }
