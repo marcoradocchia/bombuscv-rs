@@ -21,11 +21,11 @@ mod args;
 mod config;
 
 use args::{Args, Parser};
-use bombuscv_rs::{Codec, Grabber, MotionDetector, Writer, Frame};
+use bombuscv_rs::{Codec, Grabber, MotionDetector, Writer};
 use chrono::Local;
 use config::Config;
-use std::thread;
 use std::sync::mpsc;
+use std::thread;
 
 fn main() {
     // Parse CLI arguments
@@ -52,7 +52,7 @@ fn main() {
     );
 
     // Instance of the motion detector.
-    let detector = MotionDetector::new();
+    let mut detector = MotionDetector::new();
 
     // Instance of the frame writer.
     let mut writer = Writer::new(
@@ -65,10 +65,37 @@ fn main() {
     );
 
     // Packet size in number of frames corresponding to 5 seconds of video.
-    let packsize: u8 = (config.framerate * 5.) as u8;
+    // const PACKETSIZE: usize = 100;
 
-    // for _ in 0..100 {
-    //     let frame = _grabber.grab();
-    //     _writer.write(frame);
-    // }
+    let (raw_tx, raw_rx) = mpsc::channel();
+    let (proc_tx, proc_rx) = mpsc::channel();
+
+    thread::spawn(move || {
+        loop {
+            // let mut packet: Vec<Frame> = Vec::new();
+            // for _ in 0..PACKETSIZE {
+            //     packet.push(grabber.grab());
+            // }
+
+            if raw_tx.send(grabber.grab()).is_err() {
+                eprintln!("error: frame dropped");
+            }
+        }
+    });
+
+    thread::spawn(move || {
+        for frame in raw_rx {
+            if let Some(frame) = detector.detect_motion(frame) {
+                if proc_tx.send(frame).is_err() {
+                    eprintln!("error: frame dropped");
+                };
+            }
+        }
+    });
+
+    thread::spawn(move || {
+        for frame in proc_rx {
+            writer.write(frame);
+        }
+    });
 }

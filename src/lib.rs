@@ -20,6 +20,7 @@ use std::process;
 /// Trait implementations for resolution conversions.
 pub trait ResConversion {
     fn from_str(res: &str) -> Self;
+    
 }
 
 impl ResConversion for Size {
