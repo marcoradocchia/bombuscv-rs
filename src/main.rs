@@ -26,7 +26,6 @@ use chrono::Local;
 use config::Config;
 use std::sync::mpsc;
 use std::thread;
-use std::time::Duration;
 
 fn main() {
     // Parse CLI arguments.
@@ -108,8 +107,6 @@ fn main() {
         }
         writer.release();
     });
-
-    thread::sleep(Duration::from_secs(10));
 
     grabber_handle.join().unwrap();
 }
