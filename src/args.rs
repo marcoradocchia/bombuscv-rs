@@ -1,3 +1,4 @@
+use crate::config::expand_home;
 pub use clap::Parser;
 use std::path::PathBuf;
 
@@ -17,11 +18,18 @@ pub fn validate_framerate(framerate: &str) -> Result<(), String> {
 
 /// Validate output video directory.
 pub fn validate_directory(directory: &str) -> Result<(), String> {
-    let err_msg = String::from("the given path is not a directory");
-    if !PathBuf::from(directory).is_dir() {
-        return Err(err_msg);
+    match expand_home(&PathBuf::from(directory)).is_dir() {
+        true => Ok(()),
+        false => Err(String::from("the given path is not a directory")),
     }
-    Ok(())
+}
+
+/// Validate input video path.
+fn validate_video(video: &str) -> Result<(), String> {
+    match expand_home(&PathBuf::from(video)).is_file() {
+        true => Ok(()),
+        false => Err(String::from("the given path is not a video file")),
+    }
 }
 
 /// OpenCV motion detection/video-recording tool developed for research on Bumblebees.
@@ -33,7 +41,7 @@ pub fn validate_directory(directory: &str) -> Result<(), String> {
     long_about = None
 )]
 pub struct Args {
-    /// /dev/video<index> capture camera index.
+    /// /dev/video<INDEX> capture camera index.
     #[clap(short, long)]
     pub index: Option<u8>,
 
@@ -52,6 +60,10 @@ pub struct Args {
     /// Output video directory.
     #[clap(short, long, validator = validate_directory)]
     pub directory: Option<PathBuf>,
+
+    /// Input video file.
+    #[clap(short, long, validator = validate_video, conflicts_with = "index")]
+    pub video: Option<PathBuf>,
 
     /// Enable Date/Time video overlay.
     #[clap(short, long)]

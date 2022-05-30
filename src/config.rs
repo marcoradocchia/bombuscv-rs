@@ -8,24 +8,48 @@ use std::{
 };
 use validator::{Validate, ValidationError};
 
+/// Expands `~` in `path` to absolute HOME path.
+pub fn expand_home(path: &Path) -> PathBuf {
+    let home = match BaseDirs::new() {
+        Some(base_dirs) => base_dirs.home_dir().to_path_buf(),
+        None => {
+            eprintln!("error: unable to find home directory");
+            process::exit(1);
+        }
+    };
+
+    match path.strip_prefix("~") {
+        Ok(path) => home.join(path),
+        Err(_) => path.to_path_buf(),
+    }
+}
+
 /// Validate video resolution config option.
 fn validate_resolution(resolution: &str) -> Result<(), ValidationError> {
     let valid_resolutions = [
         "480p", "576p", "720p", "768p", "900p", "1080p", "1440p", "2160p",
     ];
 
-    if !valid_resolutions.contains(&resolution) {
-        return Err(ValidationError::new("possible_value"));
+    match valid_resolutions.contains(&resolution) {
+        true => Ok(()),
+        false => Err(ValidationError::new("possible_value")),
     }
-    Ok(())
 }
 
-/// Validate output video directory.
+/// Validate output video directory path.
 fn validate_directory(path: &Path) -> Result<(), ValidationError> {
-    if !path.is_dir() {
-        return Err(ValidationError::new("path"));
+    match expand_home(path).is_dir() {
+        true => Ok(()),
+        false => Err(ValidationError::new("path")),
     }
-    Ok(())
+}
+
+/// Validate input video path.
+fn validate_video(path: &Path) -> Result<(), ValidationError> {
+    match expand_home(path).is_file() {
+        true => Ok(()),
+        false => Err(ValidationError::new("path")),
+    }
 }
 
 /// Default value for /dev/video<index> capture camera index.
@@ -79,6 +103,14 @@ pub struct Config {
     #[serde(default = "default_directory")]
     pub directory: PathBuf,
 
+    /// Input video file.
+    #[validate(custom(
+        function = "validate_video",
+        message = "given path is not a video file"
+    ))]
+    #[serde(default)]
+    pub video: Option<PathBuf>,
+
     /// Enable Date/Time video overlay.
     #[serde(default)]
     pub overlay: bool,
@@ -97,6 +129,7 @@ impl Default for Config {
             framerate: default_framerate(),
             resolution: default_resolution(),
             directory: default_directory(),
+            video: None,
             overlay: false,
             quiet: false,
         }
@@ -116,12 +149,12 @@ impl Config {
                 fs::read_to_string(config_dir.join(Path::new("bombuscv/config.toml")))
                     .unwrap_or_default();
 
-            let config = match toml::from_str(&config_file) {
+            let config: Config = match toml::from_str(&config_file) {
                 Err(e) => {
                     eprintln!("error: broken config '{e}', using defaults");
                     Config::default()
                 }
-                Ok(config) => config,
+                Ok(config) => config
             };
 
             // if values passed the parsing, validate config values
@@ -163,6 +196,9 @@ impl Config {
         }
         if let Some(directory) = args.directory {
             self.directory = directory;
+        }
+        if args.video.is_some() {
+            self.video = args.video;
         }
         if args.overlay {
             self.overlay = true;

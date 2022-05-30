@@ -3,24 +3,24 @@
 
 use chrono::{DateTime, Local};
 use opencv::{
-    core::{absdiff, Point, Scalar, Size, Vector, BORDER_CONSTANT, BORDER_DEFAULT},
+    core::{absdiff, Point, Scalar, Size, Vector, BORDER_CONSTANT, BORDER_DEFAULT, CV_8UC3},
+    highgui,
     imgproc::{
         cvt_color, dilate, find_contours, gaussian_blur, morphology_default_border_value, put_text,
-        threshold, LineTypes, CHAIN_APPROX_SIMPLE, COLOR_BGR2GRAY, FONT_HERSHEY_DUPLEX,
-        RETR_EXTERNAL, THRESH_BINARY,
+        resize, threshold, LineTypes, CHAIN_APPROX_SIMPLE, COLOR_BGR2GRAY, FONT_HERSHEY_DUPLEX,
+        INTER_LINEAR, RETR_EXTERNAL, THRESH_BINARY,
     },
-    prelude::{Mat, MatTraitConst},
+    prelude::Mat,
     videoio::{
-        VideoCapture, VideoCaptureTrait, VideoWriter, VideoWriterTrait, CAP_PROP_FPS,
-        CAP_PROP_FRAME_HEIGHT, CAP_PROP_FRAME_WIDTH, CAP_V4L2
+        VideoCapture, VideoCaptureTrait, VideoWriter, VideoWriterTrait, CAP_FFMPEG, CAP_PROP_FPS,
+        CAP_PROP_FRAME_HEIGHT, CAP_PROP_FRAME_WIDTH, CAP_V4L2,
     },
 };
-use std::process;
+use std::{path::Path, process};
 
 /// Trait implementations for resolution conversions.
 pub trait ResConversion {
     fn from_str(res: &str) -> Self;
-    
 }
 
 impl ResConversion for Size {
@@ -47,7 +47,7 @@ impl ResConversion for Size {
 pub enum Codec {
     MJPG,
     XVID,
-    MP4V
+    MP4V,
 }
 
 impl Codec {
@@ -82,7 +82,7 @@ pub struct Grabber {
 }
 
 impl Grabber {
-    /// Create an instance of the grabber.
+    /// Create an instance of the grabber from a camera input.
     ///
     /// # Parameters
     /// * index: _/dev/video<index>_ capture camera index
@@ -114,6 +114,25 @@ impl Grabber {
         Self { cap, quiet }
     }
 
+    /// Create an instance of the grabber from a video file input.
+    ///
+    /// # Parameters
+    /// * video: path of the video file
+    /// * quiet: mute stdout output
+    pub fn from_file(video: &Path, quiet: bool) -> Self {
+        let video_path = video.to_str().unwrap();
+
+        let cap = match VideoCapture::from_file(video_path, CAP_FFMPEG) {
+            Ok(cap) => cap,
+            Err(e) => {
+                eprintln!("unable to open video file `{video_path}` '{e}'");
+                process::exit(1)
+            }
+        };
+
+        Self { cap, quiet }
+    }
+
     /// Grab video frame from camera and return it.
     pub fn grab(&mut self) -> Frame {
         // Capture frame.
@@ -127,6 +146,13 @@ impl Grabber {
             datetime: Local::now(),
         }
     }
+
+    /// Release VideoCapture.
+    pub fn release(&mut self) {
+        if self.cap.release().is_err() {
+            println!("error: unable to release VideoCapture");
+        };
+    }
 }
 
 /// Motion detector.
@@ -137,25 +163,47 @@ pub struct MotionDetector {
     prev_frame: Mat,
 }
 
+impl Default for MotionDetector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MotionDetector {
+    /// Create an instance of the MotionDetector.
     pub fn new() -> Self {
         Self {
-            prev_frame: Mat::default(),
+            prev_frame: unsafe { Mat::new_size(Size::from_str("480p"), CV_8UC3).unwrap() },
         }
     }
 
-    /// Dequeue frames and detect motion.
+    /// Receive grabbed frame and detect motion, returning `Some(Frame)` if motion is detected,
+    /// `None` if no motion is detected.
     pub fn detect_motion(&mut self, frame: Frame) -> Option<Frame> {
-        // Try to grab a frame from the frame queue and process motion detection on success.
-        // If motion is detected, append current dequeued frame to the proc_frames queue in order
-        // to be processed.
-
-        // TODO: consider adding resize to 480p (does it perform better?)
+        let mut resized_frame = Mat::default();
         let mut frame_one = Mat::default();
         let mut frame_two = Mat::default();
+        // Contours must be C++ vector of vectors: std::vector<std::vector<cv::Point>>.
+        let mut contours: Vector<Vector<Point>> = Vector::default();
+
+        // Downscale input frame (to 480p resolution) toreduce noise & computational weight.
+        resize(
+            &frame.frame,
+            &mut resized_frame,
+            Size::from_str("480p"),
+            0.,
+            0.,
+            INTER_LINEAR,
+        )
+        .unwrap();
+
+        highgui::imshow("gaussian", &resized_frame).unwrap();
+        highgui::wait_key(1).unwrap();
 
         // Calculate absolute difference of pixel values.
-        absdiff(&self.prev_frame, &frame.frame, &mut frame_one).unwrap();
+        absdiff(&self.prev_frame, &resized_frame, &mut frame_one).expect("error: absdiff failed");
+        // Update the previous frame.
+        self.prev_frame = resized_frame;
 
         // Convert from BGR colorspace to grayscale.
         cvt_color(
@@ -164,7 +212,7 @@ impl MotionDetector {
             COLOR_BGR2GRAY, // Color space conversion code (see #ColorConversionCodes).
             0, // Number of channels in the destination image; if the parameter is 0, the number of the channels is derived automatically from src and code.
         )
-        .unwrap();
+        .expect("error: cvt_color failed");
 
         // Apply gaussian blur
         gaussian_blur(
@@ -175,7 +223,7 @@ impl MotionDetector {
             21.,             // Gaussian kernel standard deviation in y direction.
             BORDER_DEFAULT,
         )
-        .unwrap();
+        .expect("error: gaussian_blur failed");
 
         // Apply threshold.
         threshold(
@@ -185,7 +233,7 @@ impl MotionDetector {
             255., // Maximum value to use with the #THRESH_BINARY and #THRESH_BINARY_INV thresholding types.
             THRESH_BINARY, // Thresholding type (see #ThresholdType).
         )
-        .unwrap();
+        .expect("error: threshold failed");
 
         // Dilate image.
         dilate(
@@ -198,32 +246,26 @@ impl MotionDetector {
             BORDER_CONSTANT,    // Pixel extrapolation method, see #BorderTypes.
             morphology_default_border_value().unwrap(), // Border value in case of a constant border.
         )
-        .unwrap();
+        .expect("error: dilate failed");
 
         // Find contours.
         find_contours(
             &frame_two,
-            // TODO: check
-            &mut frame_one, // Detected contours. Each contour is stored as a vector of points (e.g. std::vector<std::vectorcv::Point >).
-            RETR_EXTERNAL,  // Contour retrieval mode, see #RetrievalModes.
+            &mut contours, // Detected contours. Each contour is stored as a vector of points (e.g. std::vector<std::vectorcv::Point >).
+            RETR_EXTERNAL, // Contour retrieval mode, see #RetrievalModes.
             CHAIN_APPROX_SIMPLE, // Contour approximation method, see #ContourApproximationModes.
             Point::new(0, 0), // Optional offset by which every contour point is shifted.
         )
-        .unwrap();
+        .expect("error: find_contours failed");
+
+        dbg!(contours.len());
 
         // Now frame_one contains contours, ready to be counted.
         // If are found => motion => return Option<Frame> to be written in video file.
-        match frame_one.total() {
-            0 => None,
-            _ => Some(frame),
+        match contours.is_empty() {
+            true => None,
+            false => Some(frame)
         }
-    }
-}
-
-/// Implement Default trait for MotionDetector.
-impl Default for MotionDetector {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -274,7 +316,7 @@ impl Writer {
         }
     }
 
-    /// Write frame to the video file.
+    /// Write passed frame to the video file.
     pub fn write(&mut self, mut frame: Frame) {
         // Add date&time overlay.
         if self.overlay
@@ -301,5 +343,12 @@ impl Writer {
         if self.writer.write(&frame.frame).is_err() && !self.quiet {
             println!("warning: frame dropped");
         }
+    }
+
+    /// Release VideoWriter.
+    pub fn release(&mut self) {
+        if self.writer.release().is_err() {
+            println!("error: unable to release VideoWriter");
+        };
     }
 }
