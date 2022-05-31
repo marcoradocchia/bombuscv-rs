@@ -1,22 +1,61 @@
+// bombuscv: OpenCV based motion detection/recording software built for research on bumblebees.
+// Copyright (C) 2022 Marco Radocchia
+//
+// This program is free software: you can redistribute it and/or modify it under
+// the terms of the GNU General Public License as published by the Free Software
+// Foundation, either version 3 of the License, or (at your option) any later
+// version.
+//
+// This program is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+// FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+// details.
+//
+// You should have received a copy of the GNU General Public License along with
+// this program. If not, see https://www.gnu.org/licenses/.
+//
 //! # BombusCV
 //! OpenCV based motion detection/recording software built for research on bumblebees.
 
 use chrono::{DateTime, Local};
 use opencv::{
     core::{absdiff, Point, Scalar, Size, Vector, BORDER_CONSTANT, BORDER_DEFAULT, CV_8UC3},
-    highgui,
     imgproc::{
         cvt_color, dilate, find_contours, gaussian_blur, morphology_default_border_value, put_text,
         resize, threshold, LineTypes, CHAIN_APPROX_SIMPLE, COLOR_BGR2GRAY, FONT_HERSHEY_DUPLEX,
         INTER_LINEAR, RETR_EXTERNAL, THRESH_BINARY,
     },
-    prelude::Mat,
+    prelude::{Mat, MatTraitConst},
     videoio::{
         VideoCapture, VideoCaptureTrait, VideoWriter, VideoWriterTrait, CAP_FFMPEG, CAP_PROP_FPS,
         CAP_PROP_FRAME_HEIGHT, CAP_PROP_FRAME_WIDTH, CAP_V4L2,
     },
 };
-use std::{path::Path, process};
+use std::{error::Error, fmt::Display, path::Path, process};
+
+/// OpenCV related errors.
+#[derive(Debug)]
+pub enum FrameError {
+    EmptyFrame,
+}
+
+/// Implement Error trait for FrameError enum.
+impl Error for FrameError {
+    fn description(&self) -> &str {
+        match *self {
+            FrameError::EmptyFrame => "empty frame",
+        }
+    }
+}
+
+/// Implement Display trait for FrameError enum.
+impl Display for FrameError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {
+            FrameError::EmptyFrame => write!(f, "error: empty frame"),
+        }
+    }
+}
 
 /// Trait implementations for resolution conversions.
 pub trait ResConversion {
@@ -43,7 +82,7 @@ impl ResConversion for Size {
     }
 }
 
-/// List of video codecs.
+/// Video codecs.
 pub enum Codec {
     MJPG,
     XVID,
@@ -51,7 +90,7 @@ pub enum Codec {
 }
 
 impl Codec {
-    /// Returns the fourcc associated to the video codec.
+    /// Return the fourcc value associated to the video codec.
     fn fourcc(&self) -> i32 {
         match *self {
             Codec::MJPG => VideoWriter::fourcc('M' as i8, 'J' as i8, 'P' as i8, 'G' as i8).unwrap(),
@@ -126,7 +165,7 @@ impl Grabber {
             Ok(cap) => cap,
             Err(e) => {
                 eprintln!("unable to open video file `{video_path}` '{e}'");
-                process::exit(1)
+                process::exit(1);
             }
         };
 
@@ -173,20 +212,30 @@ impl MotionDetector {
     /// Create an instance of the MotionDetector.
     pub fn new() -> Self {
         Self {
+            // Initialize prev_frame as 480p resolution empty frame: next grabbed frames will be
+            // downscaled to this resolution and this initialization must be a valid Size for the
+            // first frame comparison.
             prev_frame: unsafe { Mat::new_size(Size::from_str("480p"), CV_8UC3).unwrap() },
         }
     }
 
     /// Receive grabbed frame and detect motion, returning `Some(Frame)` if motion is detected,
     /// `None` if no motion is detected.
-    pub fn detect_motion(&mut self, frame: Frame) -> Option<Frame> {
+    pub fn detect_motion(&mut self, frame: Frame) -> Result<Option<Frame>, FrameError> {
+        // Create the resized_frame.
         let mut resized_frame = Mat::default();
+        // Create two helper frames that will be used for image processing.
         let mut frame_one = Mat::default();
         let mut frame_two = Mat::default();
         // Contours must be C++ vector of vectors: std::vector<std::vector<cv::Point>>.
         let mut contours: Vector<Vector<Point>> = Vector::default();
 
-        // Downscale input frame (to 480p resolution) toreduce noise & computational weight.
+        // If frame is empty return with error.
+        if frame.frame.empty() {
+            return Err(FrameError::EmptyFrame);
+        }
+
+        // Downscale input frame (to 480p resolution) to reduce noise & computational weight.
         resize(
             &frame.frame,
             &mut resized_frame,
@@ -196,9 +245,6 @@ impl MotionDetector {
             INTER_LINEAR,
         )
         .unwrap();
-
-        highgui::imshow("gaussian", &resized_frame).unwrap();
-        highgui::wait_key(1).unwrap();
 
         // Calculate absolute difference of pixel values.
         absdiff(&self.prev_frame, &resized_frame, &mut frame_one).expect("error: absdiff failed");
@@ -257,14 +303,16 @@ impl MotionDetector {
         )
         .expect("error: find_contours failed");
 
-        // dbg!(contours.len());
+        // TEST: uncomment the following line to test the changes in the detector parameters.
+        // println!("{}", contours.len());
 
-        // Now frame_one contains contours, ready to be counted.
-        // If are found => motion => return Option<Frame> to be written in video file.
-        match contours.is_empty() {
+        // Count contours in the processed frame.
+        Ok(match contours.is_empty() {
+            // No motion was found.
             true => None,
+            // Motion was found, return original video frame.
             false => Some(frame),
-        }
+        })
     }
 }
 

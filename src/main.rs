@@ -14,9 +14,6 @@
 // You should have received a copy of the GNU General Public License along with
 // this program. If not, see https://www.gnu.org/licenses/.
 
-#[cfg(test)]
-mod test;
-
 mod args;
 mod config;
 
@@ -32,9 +29,6 @@ fn main() {
     let args = Args::parse();
     // Parse config and override options with CLI arguments where provided.
     let config = Config::parse().override_with_args(args);
-
-    // dbg!(config);
-    // panic!();
 
     // Format video file path as <config.directory/date&time>.
     let filename = Local::now()
@@ -62,7 +56,9 @@ fn main() {
 
     // Instance of the frame grabber.
     let mut grabber = match config.video {
+        // VideoCapture is video file.
         Some(video) => Grabber::from_file(&video, config.quiet),
+        // VideoCapture is live camera.
         None => Grabber::new(
             config.index.into(),
             &config.resolution,
@@ -102,10 +98,15 @@ fn main() {
     // passes the frame to the frame writing thread.
     let detector_handle = thread::spawn(move || {
         for frame in raw_rx {
-            if let Some(frame) = detector.detect_motion(frame) {
-                if proc_tx.send(frame).is_err() {
-                    eprintln!("error: frame dropped");
-                };
+            match detector.detect_motion(frame) {
+                Ok(val) => {
+                    if let Some(frame) = val {
+                        if proc_tx.send(frame).is_err() {
+                            eprintln!("error: frame dropped");
+                        };
+                    }
+                }
+                Err(_) => break,
             }
         }
     });

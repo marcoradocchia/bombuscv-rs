@@ -1,3 +1,19 @@
+// bombuscv: OpenCV based motion detection/recording software built for research on bumblebees.
+// Copyright (C) 2022 Marco Radocchia
+//
+// This program is free software: you can redistribute it and/or modify it under
+// the terms of the GNU General Public License as published by the Free Software
+// Foundation, either version 3 of the License, or (at your option) any later
+// version.
+//
+// This program is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+// FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+// details.
+//
+// You should have received a copy of the GNU General Public License along with
+// this program. If not, see https://www.gnu.org/licenses/.
+
 use crate::args::Args;
 use directories::BaseDirs;
 use serde::Deserialize;
@@ -10,16 +26,21 @@ use validator::{Validate, ValidationError};
 
 /// Expands `~` in `path` to absolute HOME path.
 pub fn expand_home(path: &Path) -> PathBuf {
-    let home = match BaseDirs::new() {
-        Some(base_dirs) => base_dirs.home_dir().to_path_buf(),
-        None => {
-            eprintln!("error: unable to find home directory");
-            process::exit(1);
-        }
-    };
-
     match path.strip_prefix("~") {
-        Ok(path) => home.join(path),
+        // `~` found: replace it with the absolute HOME path.
+        Ok(path) => {
+            // Generate the absolute path for HOME.
+            let home = match BaseDirs::new() {
+                Some(base_dirs) => base_dirs.home_dir().to_path_buf(),
+                None => {
+                    eprintln!("error: unable to find home directory");
+                    process::exit(1);
+                }
+            };
+            // Insert the absolute HOME path at the beginning of the path.
+            home.join(path)
+        }
+        // `~` not found: return the given path as is
         Err(_) => path.to_path_buf(),
     }
 }
@@ -157,14 +178,15 @@ impl Config {
                 Ok(config) => config,
             };
 
-            // if values passed the parsing, validate config values
+            // Values passed the parsing, now validate config values.
             match config.validate() {
-                // if values pass validation, return parsed configuration
+                // Values pass validation, return parsed configuration.
                 Ok(_) => config,
-                // if values don't pass validation, return default configuration
+                // Values don't pass validation, return default configuration and warn the user.
                 Err(errors) => {
                     // TODO: not very elegant
-                    // gather all the invalid value into a sting and display it as an error message
+                    // Gather all the invalid value into a sting and display it as an error
+                    // message.
                     let mut error_msg =
                         String::from("error: invalid configuration options, using defaults\n");
                     for err in errors.field_errors() {
@@ -182,7 +204,7 @@ impl Config {
             Config::default()
         };
 
-        // If video path is given using ~ as home directory, expand to absolute path.
+        // If video path is given using `~` as HOME directory, expand to absolute path.
         match config.video {
             Some(video) => {
                 config.video = Some(expand_home(&video));
@@ -190,7 +212,7 @@ impl Config {
                     config.overlay = false;
                     eprintln!("warning: ignoring `overlay` option while using `video` option in configuration file.");
                 }
-            },
+            }
             None => config.video = None,
         }
         // If video directory is given using ~ as home directory, expand to absolute path.

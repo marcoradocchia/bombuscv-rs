@@ -1,18 +1,34 @@
+// bombuscv: OpenCV based motion detection/recording software built for research on bumblebees.
+// Copyright (C) 2022 Marco Radocchia
+//
+// This program is free software: you can redistribute it and/or modify it under
+// the terms of the GNU General Public License as published by the Free Software
+// Foundation, either version 3 of the License, or (at your option) any later
+// version.
+//
+// This program is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+// FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+// details.
+//
+// You should have received a copy of the GNU General Public License along with
+// this program. If not, see https://www.gnu.org/licenses/.
+
 use crate::config::expand_home;
 pub use clap::Parser;
 use std::path::PathBuf;
 
 /// Validate framerate CLI argument.
 pub fn validate_framerate(framerate: &str) -> Result<(), String> {
-    let err_msg = String::from("the framerate must be a positive floating point number.");
+    let err_msg = || String::from("the framerate must be a positive floating point number.");
     match framerate.parse::<f64>() {
         Ok(framerate) => {
             if framerate < 0. {
-                return Err(err_msg);
+                return Err(err_msg());
             }
             Ok(())
         }
-        Err(_) => Err(err_msg),
+        Err(_) => Err(err_msg()),
     }
 }
 
