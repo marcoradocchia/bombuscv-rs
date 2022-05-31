@@ -62,7 +62,7 @@ pub struct Args {
     pub directory: Option<PathBuf>,
 
     /// Input video file.
-    #[clap(short, long, validator = validate_video, conflicts_with = "index")]
+    #[clap(short, long, validator = validate_video, conflicts_with_all = &["index", "overlay"])]
     pub video: Option<PathBuf>,
 
     /// Enable Date/Time video overlay.

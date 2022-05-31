@@ -33,9 +33,7 @@ fn main() {
     // Parse config and override options with CLI arguments where provided.
     let config = Config::parse().override_with_args(args);
 
-    // Print config options.
-    println!("{:#?}", &config);
-
+    // dbg!(config);
     // panic!();
 
     // Format video file path as <config.directory/date&time>.
@@ -45,6 +43,22 @@ fn main() {
             config.directory.to_str().unwrap()
         ))
         .to_string();
+
+    // Print config options if config.quiet is not true.
+    if !config.quiet {
+        if let Some(video) = &config.video {
+            println!("==> Input video file: {}", video.display())
+        } else {
+            println!(
+                "==> Resolution: {}\n==> Framerate: {}",
+                &config.resolution, &config.framerate
+            )
+        }
+        println!(
+            "==> Output video file: {}\n==> Printing overlay: {}",
+            filename, &config.overlay
+        );
+    }
 
     // Instance of the frame grabber.
     let mut grabber = match config.video {
@@ -76,19 +90,17 @@ fn main() {
 
     // Spawn frame grabber thread:
     // this thread captures frames and passes them to the motion detecting thread.
-    let grabber_handle = thread::spawn(move || {
-        loop {
-            if raw_tx.send(grabber.grab()).is_err() {
-                grabber.release();
-                break;
-            }
+    let grabber_handle = thread::spawn(move || loop {
+        if raw_tx.send(grabber.grab()).is_err() {
+            grabber.release();
+            break;
         }
     });
 
     // Spawn motion detecting thread:
     // this thread receives frames from the grabber thread, processes it and if motion is detected,
     // passes the frame to the frame writing thread.
-    thread::spawn(move || {
+    let detector_handle = thread::spawn(move || {
         for frame in raw_rx {
             if let Some(frame) = detector.detect_motion(frame) {
                 if proc_tx.send(frame).is_err() {
@@ -101,12 +113,15 @@ fn main() {
     // Spawn frame writer thread:
     // this thread receives the processed frames by the motion detecting thread and writes them in
     // the output video file.
-    thread::spawn(move || {
+    let writer_handle = thread::spawn(move || {
         for frame in proc_rx {
             writer.write(frame);
         }
         writer.release();
     });
 
+    // Join all threads.
     grabber_handle.join().unwrap();
+    detector_handle.join().unwrap();
+    writer_handle.join().unwrap();
 }

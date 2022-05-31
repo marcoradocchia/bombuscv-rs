@@ -139,7 +139,7 @@ impl Default for Config {
 impl Config {
     /// Parse configuration from config file.
     pub fn parse() -> Self {
-        if let Some(base_dirs) = BaseDirs::new() {
+        let mut config = if let Some(base_dirs) = BaseDirs::new() {
             // Lin: /home/alice/.config/
             // Win: C:\Users\Alice\AppData\Roaming\
             // Mac: /Users/Alice/Library/Application Support/
@@ -154,7 +154,7 @@ impl Config {
                     eprintln!("error: broken config '{e}', using defaults");
                     Config::default()
                 }
-                Ok(config) => config
+                Ok(config) => config,
             };
 
             // if values passed the parsing, validate config values
@@ -180,7 +180,23 @@ impl Config {
         } else {
             eprintln!("warning: no valid config path found on the system, using defaults");
             Config::default()
+        };
+
+        // If video path is given using ~ as home directory, expand to absolute path.
+        match config.video {
+            Some(video) => {
+                config.video = Some(expand_home(&video));
+                if config.overlay {
+                    config.overlay = false;
+                    eprintln!("warning: ignoring `overlay` option while using `video` option in configuration file.");
+                }
+            },
+            None => config.video = None,
         }
+        // If video directory is given using ~ as home directory, expand to absolute path.
+        config.directory = expand_home(&config.directory);
+
+        config
     }
 
     /// Override configuration with command line arguments.
@@ -196,12 +212,28 @@ impl Config {
         }
         if let Some(directory) = args.directory {
             self.directory = directory;
-        }
-        if args.video.is_some() {
-            self.video = args.video;
+        };
+        if let Some(video) = args.video {
+            self.video = Some(video);
+            // If overlay option is set in config file & Video CLI argument is provided, then
+            // automatically disable video overlay since it makes no sense with non live captured
+            // frames.
+            if self.overlay {
+                eprintln!("warning: ignoring `overlay` option in configuration file while using `video` CLI argument.");
+                self.overlay = false;
+            }
         }
         if args.overlay {
-            self.overlay = true;
+            // Overlay CLI flag is provided, but video is provided in configuration option: ignoring
+            // overlay (date&time video overlay) option since it makes no sense with non live
+            // captured frames.
+            if self.video.is_some() {
+                eprintln!("warning: ignoring `overlay` option while using `video` option in configuration file.");
+            } else {
+                // Overlay CLI flag is provided and live input is being used, so go ahead and
+                // override configuration file with CLI flag provided.
+                self.overlay = true;
+            }
         }
         if args.quiet {
             self.quiet = true;

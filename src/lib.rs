@@ -239,7 +239,6 @@ impl MotionDetector {
         dilate(
             &frame_one,
             &mut frame_two,
-            // TODO: check structuring element.
             &Mat::default(), // Structuring element used for dilation; If elemenat=Mat(), a 3 x 3 rectangular structuring element is used.
             Point::new(-1, -1), // Position of the anchor within the element; default value (-1, -1) means that the anchor is at the element center.
             3,                  // Number of times dilation is applied.
@@ -258,13 +257,13 @@ impl MotionDetector {
         )
         .expect("error: find_contours failed");
 
-        dbg!(contours.len());
+        // dbg!(contours.len());
 
         // Now frame_one contains contours, ready to be counted.
         // If are found => motion => return Option<Frame> to be written in video file.
         match contours.is_empty() {
             true => None,
-            false => Some(frame)
+            false => Some(frame),
         }
     }
 }
