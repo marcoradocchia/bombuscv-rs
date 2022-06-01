@@ -1,14 +1,12 @@
-<p align="center">
-# BombusCV
-</p>
+<div align="center">
+  # BombusCV
 
-![GitHub releases](https://img.shields.io/github/downloads/marcoradocchia/bombuscv-rs/total?color=%23ea6962&logo=github&style=flat-square)
-![GitHub repo size](https://img.shields.io/github/repo-size/marcoradocchia/bombuscv-rs?style=flat-square)
-![GitHub license](https://img.shields.io/github/license/marcoradocchia/bombuscv-rs?style=flat-square)
-![GitHub open issues](https://img.shields.io/github/issues-raw/marcoradocchia/bombuscv-rs?style=flat-square)
-![GitHub open pull requests](https://img.shields.io/github/issues-pr-raw/marcoradocchia/bombuscv-rs?style=flat-square)
-![Crates.io downloads](https://img.shields.io/crates/d/bombuscv-rs?style=flat-square)
-![Crates.io version](https://img.shields.io/crates/v/bombuscv-rs?style=flat-square)
+  ![GitHub releases](https://img.shields.io/github/downloads/marcoradocchia/bombuscv-rs/total?color=%23a9b665&logo=github)
+  ![GitHub repo size](https://img.shields.io/github/repo-size/marcoradocchia/bombuscv-rs?color=%23ea6962&logo=github)
+  ![GitHub open issues](https://img.shields.io/github/issues-raw/marcoradocchia/bombuscv-rs?color=%23d8a657&logo=github)
+  ![GitHub open pull requests](https://img.shields.io/github/issues-pr-raw/marcoradocchia/bombuscv-rs?color=%2389b482&logo=github)
+  ![GitHub license](https://img.shields.io/github/license/marcoradocchia/bombuscv-rs?color=%23e78a4e)
+</div>
 
 Motion detection & video recording software based on OpenCV, built for research
 on **Bumblebees** (hence the name).
@@ -17,7 +15,7 @@ on **Bumblebees** (hence the name).
 
 - [Use case](#use-case)
 - [Examples](#examples)
-- [Build & Install](#build-&-install)
+- [Install](#install)
 - [Usage](#usage)
 - [Configuration](#configuration)
 - [Changelog](#changelog)
@@ -118,11 +116,15 @@ Complete [CHANGELOG](CHANGELOG.md).
 
 ## ToDo
 
+- [ ] Provide build & install instructions, as well as the instructions to
+  install OpenCV.
 - [x] Passing `video` or `directory` options in the configuration file using
   `~/<path>` results in an error: in the Deserialize expanding `~` to
-  absolute path is required
+  absolute path is required.
 - [x] Using `video`, _date&time_ overlay generated on frame grabbed makes no
-  sense: disable video overlay while using `video` option
+  sense: disable video overlay while using `video` option.
+- [ ] Add thread signalling to interrupt grabber thread and gracefully
+  terminate the execution.
 
 ## License
 
