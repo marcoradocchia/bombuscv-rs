@@ -31,11 +31,11 @@ with a
 [Raspberry Pi 4](https://www.raspberrypi.com/products/raspberry-pi-4-model-b/)[^1]
 and a
 [Raspberry Pi HQ Camera](https://www.raspberrypi.com/products/raspberry-pi-high-quality-camera/)[^2]
-pointed at the entrance of a _Bombus Terrestris_ nest, in order to record clips
+pointed at the entrance of a _Bombus terrestris_ nest, in order to record clips
 of the entry/exit events, based on motion. This considerably reduced the
 storage space required for the recordings and completely removed the need of
 post processing work, since it was only recording clips in which individuals
-apppeared in the video frame.
+appeared in the video frame.
 
 `bombuscv-rs` offers realtime motion detection & video recording[^3] using
 camera input and can be directly used on fieldwork. However, using the `video`
