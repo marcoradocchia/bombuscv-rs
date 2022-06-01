@@ -18,7 +18,7 @@ use crate::args::Args;
 use directories::BaseDirs;
 use serde::Deserialize;
 use std::{
-    fs,
+    env, fs,
     path::{Path, PathBuf},
     process,
 };
@@ -161,18 +161,27 @@ impl Config {
     /// Parse configuration from config file.
     pub fn parse() -> Self {
         let mut config = if let Some(base_dirs) = BaseDirs::new() {
+            // Below the OS specific config dir values.
             // Lin: /home/alice/.config/
-            // Win: C:\Users\Alice\AppData\Roaming\
             // Mac: /Users/Alice/Library/Application Support/
-            let config_dir = base_dirs.config_dir();
+            // Win: C:\Users\Alice\AppData\Roaming\
 
-            let config_file =
-                fs::read_to_string(config_dir.join(Path::new("bombuscv/config.toml")))
-                    .unwrap_or_default();
+            // Fetch the environment variables for BOMBUSCV_CONFIG to hold a custom path to store
+            // the configuration file.
+            let config_file = fs::read_to_string(match env::var("BOMBUSCV_CONFIG") {
+                // BOMBUSCV_CONFIG env variable set, so expand home and use it as the config
+                Ok(path) => expand_home(Path::new(&path)),
+                // BOMBUSCV_CONFIG env variable unset or invalid: use default config file location.
+                Err(_) => base_dirs
+                    .config_dir()
+                    .join(Path::new("bombuscv/config.toml")),
+            })
+            .unwrap_or_default();
 
+            // Parse toml configuration file.
             let config: Config = match toml::from_str(&config_file) {
                 Err(e) => {
-                    eprintln!("error: broken config '{e}', using defaults");
+                    eprintln!("error: invalid config '{e}', using defaults");
                     Config::default()
                 }
                 Ok(config) => config,

@@ -32,10 +32,13 @@ fn main() {
 
     // Format video file path as <config.directory/date&time>.
     let filename = Local::now()
-        .format(&format!(
-            "{}/%Y-%m-%dT%H:%M:%S.mkv",
-            config.directory.to_str().unwrap()
-        ))
+        .format(
+            config
+                .directory
+                .join("%Y-%m-%dT%H:%M:%S.mkv")
+                .to_str()
+                .unwrap(),
+        )
         .to_string();
 
     // Print config options if config.quiet is not true.

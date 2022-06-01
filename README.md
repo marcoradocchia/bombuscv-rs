@@ -92,9 +92,10 @@ OPTIONS:
 ## Configuration
 
 All options can be set in a optional configuration file stored at
-`$XDG_CONFIG_HOME/bombuscv/config.toml`. CLI arguments/flags override options
-defined in the configuration file.
-Below listed an example configuration file:
+`$XDG_CONFIG_HOME/bombuscv/config.toml` by default or at any location in the
+filesystem specified by setting `BOMBUSCV_CONFIG` environment variable. CLI
+arguments/flags override options defined in the configuration file. Below
+listed an example configuration file:
 ```toml
 # /dev/video<index> camera input
 index = 0
@@ -125,6 +126,10 @@ Complete [CHANGELOG](CHANGELOG.md).
   absolute path is required.
 - [x] Using `video`, _date&time_ overlay generated on frame grabbed makes no
   sense: disable video overlay while using `video` option.
+- [x] Add option to specify custom config path using env variables.
+- [ ] Add option to specify (in config file or via CLI argument) a custom
+  output video filename formatter (must be [chrono DateTime
+  syntax](https://docs.rs/chrono/latest/chrono/format/strftime/index.html)).
 - [ ] Add thread signalling to interrupt grabber thread and gracefully
   terminate the execution.
 
