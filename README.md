@@ -132,6 +132,7 @@ Complete [CHANGELOG](CHANGELOG.md).
   syntax](https://docs.rs/chrono/latest/chrono/format/strftime/index.html)).
 - [ ] Add thread signalling to interrupt grabber thread and gracefully
   terminate the execution.
+- [ ] Move logic from `main` to newly defined `run`.
 
 ## License
 
