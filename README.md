@@ -136,7 +136,7 @@ Complete [CHANGELOG](CHANGELOG.md).
 - [x] Add option to specify (in config file or via CLI argument) a custom
   output video filename formatter (must be [chrono DateTime
   syntax](https://docs.rs/chrono/latest/chrono/format/strftime/index.html)).
-- [ ] Add thread signalling to interrupt grabber thread and gracefully
+- [x] Add thread signalling to interrupt grabber thread and gracefully
   terminate the execution.
 - [ ] Move logic from `main` to newly defined `run`.
 

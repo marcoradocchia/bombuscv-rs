@@ -163,6 +163,6 @@ fn main() {
 
     // Gracefully terminated execution.
     if !config.quiet {
-        println!("Done.");
+        println!("\nDone.");
     }
 }
