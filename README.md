@@ -74,11 +74,14 @@ Marco Radocchia <marco.radocchia@outlook.com>
 OpenCV based motion detection/recording software built for research on bumblebees.
 
 USAGE:
-    bombuscv-rs [OPTIONS]
+    bombuscv [OPTIONS]
 
 OPTIONS:
     -d, --directory <DIRECTORY>      Output video directory
     -f, --framerate <FRAMERATE>      Video framerate
+        --format <FORMAT>            Output video filename format (see
+                                     https://docs.rs/chrono/latest/chrono/format/strftime/index.html
+                                     for valid specifiers)
     -h, --help                       Print help information
     -i, --index <INDEX>              /dev/video<INDEX> capture camera index
     -o, --overlay                    Enable Date/Time video overlay
@@ -109,6 +112,9 @@ overlay = true
 quiet = false
 # output video directory
 directory = "~/output_directory/"
+# output video filename format (see
+# https://docs.rs/chrono/latest/chrono/format/strftime/index.html for valid specifiers)
+format = "%Y-%m-%dT%H:%M:%S"
 # input video file (replaces live camera input; conflicts with index, overlay)
 # video = "~/input_video.mkv"
 ```
@@ -119,15 +125,15 @@ Complete [CHANGELOG](CHANGELOG.md).
 
 ## ToDo
 
-- [ ] Provide build & install instructions, as well as the instructions to
-  install OpenCV.
+- [ ] Provide build & install instructions in [README](README.md), as well as
+  the instructions to install OpenCV.
 - [x] Passing `video` or `directory` options in the configuration file using
   `~/<path>` results in an error: in the Deserialize expanding `~` to
   absolute path is required.
 - [x] Using `video`, _date&time_ overlay generated on frame grabbed makes no
   sense: disable video overlay while using `video` option.
 - [x] Add option to specify custom config path using env variables.
-- [ ] Add option to specify (in config file or via CLI argument) a custom
+- [x] Add option to specify (in config file or via CLI argument) a custom
   output video filename formatter (must be [chrono DateTime
   syntax](https://docs.rs/chrono/latest/chrono/format/strftime/index.html)).
 - [ ] Add thread signalling to interrupt grabber thread and gracefully

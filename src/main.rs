@@ -22,11 +22,12 @@ use bombuscv_rs::{Codec, Grabber, MotionDetector, Writer};
 use chrono::Local;
 use config::Config;
 use std::sync::mpsc;
-use std::thread;
+use std::{path::Path, thread};
 
 fn main() {
     // Parse CLI arguments.
     let args = Args::parse();
+
     // Parse config and override options with CLI arguments where provided.
     let config = Config::parse().override_with_args(args);
 
@@ -34,8 +35,11 @@ fn main() {
     let filename = Local::now()
         .format(
             config
+                // Output video file directory.
                 .directory
-                .join("%Y-%m-%dT%H:%M:%S.mkv")
+                // Output video file name (derived by file format) + extension.
+                .join(Path::new(&config.format).with_extension("mkv"))
+                // Convert Path object to string;
                 .to_str()
                 .unwrap(),
         )

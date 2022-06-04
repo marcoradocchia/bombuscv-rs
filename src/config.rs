@@ -99,6 +99,11 @@ fn default_directory() -> PathBuf {
     }
 }
 
+/// Default output video filename format.
+fn default_format() -> String {
+    String::from("%Y-%m-%dT%H:%M:%S")
+}
+
 /// Configuration options.
 #[derive(Deserialize, Validate, Debug)]
 pub struct Config {
@@ -132,6 +137,10 @@ pub struct Config {
     #[serde(default)]
     pub video: Option<PathBuf>,
 
+    /// Output video filename format (see https://docs.rs/chrono/latest/chrono/format/strftime/index.html for valid specifiers).
+    #[serde(default = "default_format")]
+    pub format: String,
+
     /// Enable Date/Time video overlay.
     #[serde(default)]
     pub overlay: bool,
@@ -151,6 +160,7 @@ impl Default for Config {
             resolution: default_resolution(),
             directory: default_directory(),
             video: None,
+            format: default_format(),
             overlay: false,
             quiet: false,
         }
@@ -224,6 +234,7 @@ impl Config {
             }
             None => config.video = None,
         }
+
         // If video directory is given using ~ as home directory, expand to absolute path.
         config.directory = expand_home(&config.directory);
 
@@ -253,6 +264,9 @@ impl Config {
                 eprintln!("warning: ignoring `overlay` option in configuration file while using `video` CLI argument.");
                 self.overlay = false;
             }
+        }
+        if let Some(format) = args.format {
+            self.format = format;
         }
         if args.overlay {
             // Overlay CLI flag is provided, but video is provided in configuration option: ignoring
