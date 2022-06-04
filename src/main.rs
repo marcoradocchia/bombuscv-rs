@@ -21,8 +21,16 @@ use args::{Args, Parser};
 use bombuscv_rs::{Codec, Grabber, MotionDetector, Writer};
 use chrono::Local;
 use config::Config;
-use std::sync::mpsc;
-use std::{path::Path, thread};
+use signal_hook::{consts::SIGINT, flag::register};
+use std::{
+    path::Path,
+    process,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc, Arc,
+    },
+    thread,
+};
 
 fn main() {
     // Parse CLI arguments.
@@ -87,32 +95,51 @@ fn main() {
         config.quiet,
     );
 
+    // Save memory dropping filename.
+    drop(filename);
+
     // Create channels for message passing between threads.
     let (raw_tx, raw_rx) = mpsc::channel();
     let (proc_tx, proc_rx) = mpsc::channel();
 
     // Spawn frame grabber thread:
     // this thread captures frames and passes them to the motion detecting thread.
-    let grabber_handle = thread::spawn(move || loop {
-        if raw_tx.send(grabber.grab()).is_err() {
-            grabber.release();
-            break;
+    let grabber_handle = thread::spawn(move || {
+        let term = Arc::new(AtomicBool::new(false));
+        // Register signal hook for SIGINT events: catch eventual error, report it to the user &
+        // exit process with code error code.
+        if let Err(e) = register(SIGINT, Arc::clone(&term)) {
+            eprintln!("unable to register signal hook '{e}'");
+            process::exit(1);
+        };
+
+        // Start grabber loop: loop guard is `received SIGINT`.
+        while !term.load(Ordering::Relaxed) {
+            // Grab frame and send it to the motion detection thread.
+            if raw_tx.send(grabber.grab()).is_err() {
+                break;
+            }
         }
     });
 
-    // Spawn motion detecting thread:
+    // Spawn motion detection thread:
     // this thread receives frames from the grabber thread, processes it and if motion is detected,
     // passes the frame to the frame writing thread.
     let detector_handle = thread::spawn(move || {
+        // Loop over received frames from the frame grabber.
         for frame in raw_rx {
             match detector.detect_motion(frame) {
+                // Valid frame is received.
                 Ok(val) => {
+                    // Motion has been detected: send frame to the video writer.
                     if let Some(frame) = val {
                         if proc_tx.send(frame).is_err() {
                             eprintln!("error: frame dropped");
                         };
                     }
                 }
+                // Last captured frame was an empty frame: no more input is provided, interrupt the
+                // thread (break the loop).
                 Err(_) => break,
             }
         }
@@ -122,14 +149,20 @@ fn main() {
     // this thread receives the processed frames by the motion detecting thread and writes them in
     // the output video file.
     let writer_handle = thread::spawn(move || {
+        // Loop over received frames from the motion detector.
         for frame in proc_rx {
+            // Write processed frames (motion detected) to the video file.
             writer.write(frame);
         }
-        writer.release();
     });
 
     // Join all threads.
     grabber_handle.join().unwrap();
     detector_handle.join().unwrap();
     writer_handle.join().unwrap();
+
+    // Gracefully terminated execution.
+    if !config.quiet {
+        println!("Done.");
+    }
 }

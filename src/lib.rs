@@ -185,9 +185,11 @@ impl Grabber {
             datetime: Local::now(),
         }
     }
+}
 
-    /// Release VideoCapture.
-    pub fn release(&mut self) {
+/// Implement Drop trait for the Grabber struct to release the VideoCapture on Grabber drop.
+impl Drop for Grabber {
+    fn drop(&mut self) {
         if self.cap.release().is_err() {
             println!("error: unable to release VideoCapture");
         };
@@ -391,9 +393,12 @@ impl Writer {
             println!("warning: frame dropped");
         }
     }
+}
 
-    /// Release VideoWriter.
-    pub fn release(&mut self) {
+/// Implement Drop trait for the Writer struct to release the VideoWriter on Writer drop.
+impl Drop for Writer {
+    fn drop(&mut self)
+    {
         if self.writer.release().is_err() {
             println!("error: unable to release VideoWriter");
         };

@@ -44,3 +44,4 @@ toml = { version = "0.5.9" }
 chrono = { version = "0.4.19" }
 validator = { version = "0.15.0", features = ["derive"] }
 opencv = { version = "0.64.0" }
+signal-hook = { version = "0.3.14" }
