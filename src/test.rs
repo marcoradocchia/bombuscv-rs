@@ -6,7 +6,7 @@ use std::{time::Instant, fs};
 #[test]
 fn sync_frame_processing_avg_time() {
     // Number of frames to acquire.
-    const N: usize = 500;
+    const N: usize = 2000;
 
     // Generate the absolute path for HOME.
     let home = BaseDirs::new().unwrap().home_dir().to_path_buf();
@@ -15,8 +15,8 @@ fn sync_frame_processing_avg_time() {
     let config = Config {
         index: 0,
         framerate: 60.,
-        resolution: String::from("720p"),
-        video: Some(home.join("test_720.mkv")),
+        resolution: String::from("1080p"),
+        video: Some(home.join("test.mkv")),
         directory: home,
         format: String::from("output"),
         overlay: false,
@@ -41,20 +41,6 @@ fn sync_frame_processing_avg_time() {
     if !config.quiet {
         println!("{:#?}", &config);
     }
-
-    // Instance of the frame grabber.
-    let mut grabber = match &config.video {
-        // VideoCapture is video file.
-        Some(video) => Grabber::from_file(video, config.quiet),
-        // VideoCapture is live camera.
-        None => Grabber::new(
-            config.index.into(),
-            &config.resolution,
-            config.framerate,
-            config.quiet,
-        ),
-    };
-
     // Instance of the motion detector.
     let mut detector = MotionDetector::new();
 
@@ -72,9 +58,26 @@ fn sync_frame_processing_avg_time() {
     let mut frames: Vec<Frame> = Vec::with_capacity(N);
     let mut detected_frames = 0;
 
-    // Acquire N frames.
-    for _ in 0..N {
-        frames.push(grabber.grab());
+    // Create grabber and grab in a new scope in order to release the grabber as soon as the
+    // grabbing is done.
+    {
+        // Instance of the frame grabber.
+        let mut grabber = match &config.video {
+            // VideoCapture is video file.
+            Some(video) => Grabber::from_file(video, config.quiet),
+            // VideoCapture is live camera.
+            None => Grabber::new(
+                config.index.into(),
+                &config.resolution,
+                config.framerate,
+                config.quiet,
+            ),
+        };
+
+        // Acquire N frames.
+        for _ in 0..N {
+            frames.push(grabber.grab());
+        }
     }
 
     // Save the start time.
@@ -96,16 +99,16 @@ fn sync_frame_processing_avg_time() {
     //Calculate the elapsed time to process motion detection on all the N frmaes.
     let tot_dur_ns = start.elapsed();
     let dur_ns = tot_dur_ns.div_f32(N as f32);
+    let max = 1e3 / config.framerate as f32;
     println!("==> # saved frames: {}", detected_frames);
     println!("==> processing motion detection took: {:?}", tot_dur_ns);
     println!(
         "==> processing motion detection per frame took (avg): {:?}",
         dur_ns
     );
-    let max = 1e3 / config.framerate as f32;
     println!("==> max value allowed: {}ms", max);
 
-    // Remove output file.
+    // Remove generated video file.
     fs::remove_file(filename).expect("unable to remove output file.");
 
     assert!(dur_ns.subsec_micros() <= (max * 1e3) as u32);

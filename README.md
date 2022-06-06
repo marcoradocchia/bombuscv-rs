@@ -127,6 +127,7 @@ Complete [CHANGELOG](CHANGELOG.md).
 
 - [ ] Provide build & install instructions in [README](README.md), as well as
   the instructions to install OpenCV.
+- [ ] Make install script for automated installation on RaspberryPi.
 - [x] Passing `video` or `directory` options in the configuration file using
   `~/<path>` results in an error: in the Deserialize expanding `~` to
   absolute path is required.
@@ -138,7 +139,7 @@ Complete [CHANGELOG](CHANGELOG.md).
   syntax](https://docs.rs/chrono/latest/chrono/format/strftime/index.html)).
 - [x] Add thread signalling to interrupt grabber thread and gracefully
   terminate the execution.
-- [ ] Move logic from `main` to newly defined `run`.
+- [x] Move logic from `main` to newly defined `run`.
 
 ## License
 
