@@ -14,6 +14,9 @@
 // You should have received a copy of the GNU General Public License along with
 // this program. If not, see https://www.gnu.org/licenses/.
 
+#[cfg(test)]
+mod test;
+
 mod args;
 mod config;
 
@@ -53,26 +56,22 @@ fn main() {
         )
         .to_string();
 
-    // Print config options if config.quiet is not true.
+    // Print config options if config.quiet is false.
     if !config.quiet {
         if let Some(video) = &config.video {
-            println!("==> Input video file: {}", video.display())
-        } else {
-            println!(
-                "==> Resolution: {}\n==> Framerate: {}",
-                &config.resolution, &config.framerate
-            )
-        }
+            println!("==> Input video file: {}", video.display());
+        };
         println!(
-            "==> Output video file: {}\n==> Printing overlay: {}",
-            filename, &config.overlay
+            "==> Resolution: {}\n==> Framerate: {}\n==> Output video file: {}\n\
+                ==> Printing overlay: {}",
+            &config.resolution, &config.framerate, filename, &config.overlay
         );
     }
 
     // Instance of the frame grabber.
-    let mut grabber = match config.video {
+    let grabber = match &config.video {
         // VideoCapture is video file.
-        Some(video) => Grabber::from_file(&video, config.quiet),
+        Some(video) => Grabber::from_file(video, config.quiet),
         // VideoCapture is live camera.
         None => Grabber::new(
             config.index.into(),
@@ -83,10 +82,10 @@ fn main() {
     };
 
     // Instance of the motion detector.
-    let mut detector = MotionDetector::new();
+    let detector = MotionDetector::new();
 
     // Instance of the frame writer.
-    let mut writer = Writer::new(
+    let writer = Writer::new(
         &config.resolution,
         config.framerate,
         &filename,
@@ -98,9 +97,22 @@ fn main() {
     // Save memory dropping filename.
     drop(filename);
 
+    // Run the program.
+    run(grabber, detector, writer);
+
+    // Gracefully terminated execution.
+    if !config.quiet {
+        println!("\nDone.");
+    }
+}
+
+/// Run `bombuscv`: spawn & join frame grabber, detector and writer threads.
+fn run(mut grabber: Grabber, mut detector: MotionDetector, mut writer: Writer) {
     // Create channels for message passing between threads.
-    let (raw_tx, raw_rx) = mpsc::channel();
-    let (proc_tx, proc_rx) = mpsc::channel();
+    // NOTE: using mpsc::sync_channel (blocking) for to avoid channel size
+    // growing indefinitely, resulting in infinite memory usage.
+    let (raw_tx, raw_rx) = mpsc::sync_channel(100);
+    let (proc_tx, proc_rx) = mpsc::sync_channel(100);
 
     // Spawn frame grabber thread:
     // this thread captures frames and passes them to the motion detecting thread.
@@ -109,7 +121,7 @@ fn main() {
         // Register signal hook for SIGINT events: catch eventual error, report it to the user &
         // exit process with code error code.
         if let Err(e) = register(SIGINT, Arc::clone(&term)) {
-            eprintln!("unable to register signal hook '{e}'");
+            eprintln!("unable to register SIGINT hook '{e}'");
             process::exit(1);
         };
 
@@ -134,7 +146,7 @@ fn main() {
                     // Motion has been detected: send frame to the video writer.
                     if let Some(frame) = val {
                         if proc_tx.send(frame).is_err() {
-                            eprintln!("error: frame dropped");
+                            eprintln!("warning: frame dropped");
                         };
                     }
                 }
@@ -160,9 +172,4 @@ fn main() {
     grabber_handle.join().unwrap();
     detector_handle.join().unwrap();
     writer_handle.join().unwrap();
-
-    // Gracefully terminated execution.
-    if !config.quiet {
-        println!("\nDone.");
-    }
 }

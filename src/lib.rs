@@ -397,8 +397,7 @@ impl Writer {
 
 /// Implement Drop trait for the Writer struct to release the VideoWriter on Writer drop.
 impl Drop for Writer {
-    fn drop(&mut self)
-    {
+    fn drop(&mut self) {
         if self.writer.release().is_err() {
             println!("error: unable to release VideoWriter");
         };
