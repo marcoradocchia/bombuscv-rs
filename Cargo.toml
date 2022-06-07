@@ -8,26 +8,7 @@ description = "OpenCV based motion detection/recording software built for resear
 readme = "README.md"
 repository = "https://github.com/marcoradocchia/bombuscv-rs/"
 license = "GPL-3.0-only"
-keywords = [
-  "opencv",
-  "open-cv",
-  "open_cv",
-  "bumblebees",
-  "bumblebee",
-  "bee",
-  "bees",
-  "insect",
-  "insects",
-  "bumblebee-detection",
-  "bee-detection",
-  "insect-detection",
-  "motion",
-  "motion-detection",
-  "motion_detection",
-  "video-recording",
-  "video_recording",
-  "video",
-]
+keywords = ["opencv", "bumblebee", "insect", "motion", "video-recording"]
 categories = ["command-line-utilities", "computer-vision", "science"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
