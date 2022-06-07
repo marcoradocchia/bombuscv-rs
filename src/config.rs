@@ -15,14 +15,85 @@
 // this program. If not, see https://www.gnu.org/licenses/.
 
 use crate::args::Args;
+use bombuscv_rs::ResConversion;
 use directories::BaseDirs;
+use ffprobe;
+use opencv::core::Size;
 use serde::Deserialize;
 use std::{
     env, fs,
     path::{Path, PathBuf},
     process,
+    string::String,
 };
 use validator::{Validate, ValidationError};
+
+const VALID_RESOLUTIONS: [&str; 8] = [
+    "480p", "576p", "720p", "768p", "900p", "1080p", "1440p", "2160p",
+];
+
+/// Retrieve `resolution` & `framerate` information using ffprobe.
+///
+/// # Note
+/// This function is intended to be used to parse Config fileds when using pre-recorded video file
+/// as input.
+fn video_metadata(video_path: &Path) -> (String, f64) {
+    let streams = match ffprobe::ffprobe(video_path) {
+        Ok(metadata) => metadata.streams,
+        Err(e) => {
+            eprintln!("error: unable to retrieve `{video_path:?}` metadata '{e}'");
+            process::exit(1);
+        }
+    };
+
+    // Iterated over probed streams in search of the first video stream.
+    for stream in streams {
+        if let Some(codec_type) = stream.codec_type {
+            if codec_type == "video" {
+                // Retrieve resolution information.
+                let resolution = if stream.width.is_some() && stream.height.is_some() {
+                    let width = stream.width.unwrap();
+                    let height = stream.height.unwrap();
+                    let res_string = format!("{height}p");
+
+                    // If `video` resolution is not one of the valid resolutions exit with error:
+                    // height is being checked in the from_str() function, so let's check if the
+                    // corresponding width matches (the video is actually 16:9 aspect ratio).
+                    if Size::from_str(&res_string).width as i64 != width {
+                        eprintln!("error: `video` is not a supported resolution.");
+                        process::exit(1);
+                    }
+
+                    res_string
+                } else {
+                    eprintln!(
+                        "error: unable to retrieve `resolution` information from '{:?}'",
+                        video_path
+                    );
+                    process::exit(1);
+                };
+
+                // Retrieve framerate information.
+                let framerate = match stream.avg_frame_rate.split_once('/') {
+                    Some(framerate) => framerate,
+                    None => {
+                        eprintln!(
+                            "error: unable to retrieve `framerate` information from '{:?}'",
+                            video_path
+                        );
+                        process::exit(1);
+                    }
+                };
+                let framerate =
+                    framerate.0.parse::<f64>().unwrap() / framerate.1.parse::<f64>().unwrap();
+
+                return (resolution, framerate);
+            }
+        }
+    }
+    eprintln!("error: `video` does not contain any valid video stream.");
+    process::exit(1);
+}
 
 /// Expands `~` in `path` to absolute HOME path.
 pub fn expand_home(path: &Path) -> PathBuf {
@@ -47,11 +118,7 @@ pub fn expand_home(path: &Path) -> PathBuf {
 
 /// Validate video resolution config option.
 fn validate_resolution(resolution: &str) -> Result<(), ValidationError> {
-    let valid_resolutions = [
-        "480p", "576p", "720p", "768p", "900p", "1080p", "1440p", "2160p",
-    ];
-
-    match valid_resolutions.contains(&resolution) {
+    match VALID_RESOLUTIONS.contains(&resolution) {
         true => Ok(()),
         false => Err(ValidationError::new("possible_value")),
     }
@@ -137,11 +204,12 @@ pub struct Config {
     #[serde(default)]
     pub video: Option<PathBuf>,
 
-    /// Output video filename format (see https://docs.rs/chrono/latest/chrono/format/strftime/index.html for valid specifiers).
+    /// Output video filename format (see
+    /// https://docs.rs/chrono/latest/chrono/format/strftime/index.html for valid specifiers).
     #[serde(default = "default_format")]
     pub format: String,
 
-    /// Enable Date/Time video overlay.
+    /// Enable Date&Time video overlay.
     #[serde(default)]
     pub overlay: bool,
 
@@ -191,7 +259,7 @@ impl Config {
             // Parse toml configuration file.
             let config: Config = match toml::from_str(&config_file) {
                 Err(e) => {
-                    eprintln!("error: invalid config '{e}', using defaults");
+                    eprintln!("error [config]: invalid config '{e}', using defaults");
                     Config::default()
                 }
                 Ok(config) => config,
@@ -206,8 +274,9 @@ impl Config {
                     // TODO: not very elegant
                     // Gather all the invalid value into a sting and display it as an error
                     // message.
-                    let mut error_msg =
-                        String::from("error: invalid configuration options, using defaults\n");
+                    let mut error_msg = String::from(
+                        "error [config]: invalid configuration options, using defaults\n",
+                    );
                     for err in errors.field_errors() {
                         let msg = &err.1.first().unwrap().message;
                         error_msg.push_str(&format!("-> {}: {}\n", err.0, msg.as_ref().unwrap()));
@@ -219,20 +288,34 @@ impl Config {
                 }
             }
         } else {
-            eprintln!("warning: no valid config path found on the system, using defaults");
+            eprintln!("warning [config]: no valid config path found on the system, using defaults");
             Config::default()
         };
 
-        // If video path is given using `~` as HOME directory, expand to absolute path.
-        match config.video {
-            Some(video) => {
-                config.video = Some(expand_home(&video));
-                if config.overlay {
-                    config.overlay = false;
-                    eprintln!("warning: ignoring `overlay` option while using `video` option in configuration file.");
-                }
+        if let Some(video) = config.video {
+            // If video path is given using `~` as HOME directory, expand to absolute path.
+            let video = expand_home(&video);
+
+            // Update `resolution` & `framerate` fields in Config using those found in the video's
+            // metadata.
+            (config.resolution, config.framerate) = video_metadata(&video);
+            // Update the Config field with the absolute path.
+            config.video = Some(video);
+
+            // If overlay was set, disable it and warn the user.
+            if config.overlay {
+                config.overlay = false;
+                eprintln!(
+                    "warning [config]: ignoring `overlay` option while using `video` option."
+                );
             }
-            None => config.video = None,
+
+            if !config.quiet {
+                println!(
+                    "info [config]: using `video` original resolution and framerate; \
+                    ignoring eventually specified values."
+                );
+            }
         }
 
         // If video directory is given using ~ as home directory, expand to absolute path.
@@ -247,10 +330,18 @@ impl Config {
             self.index = index;
         }
         if let Some(framerate) = args.framerate {
-            self.framerate = framerate;
+            if self.video.is_some() {
+                eprintln!("warning [args]: ignoring `framerate` while using `video` option (auto-detected parameter).")
+            } else {
+                self.framerate = framerate;
+            }
         }
         if let Some(resolution) = args.resolution {
-            self.resolution = resolution;
+            if self.video.is_some() {
+                eprintln!("warning [args]: ignoring `resolution` while using `video` option (auto-detected parameter).")
+            } else {
+                self.resolution = resolution;
+            }
         }
         if let Some(directory) = args.directory {
             self.directory = directory;
@@ -261,7 +352,7 @@ impl Config {
             // automatically disable video overlay since it makes no sense with non live captured
             // frames.
             if self.overlay {
-                eprintln!("warning: ignoring `overlay` option in configuration file while using `video` CLI argument.");
+                eprintln!("warning [args]: ignoring `overlay` option in configuration file while using `video` CLI argument.");
                 self.overlay = false;
             }
         }
@@ -273,7 +364,7 @@ impl Config {
             // overlay (date&time video overlay) option since it makes no sense with non live
             // captured frames.
             if self.video.is_some() {
-                eprintln!("warning: ignoring `overlay` option while using `video` option in configuration file.");
+                eprintln!("warning [args]: ignoring `overlay` option while using `video` option in configuration file.");
             } else {
                 // Overlay CLI flag is provided and live input is being used, so go ahead and
                 // override configuration file with CLI flag provided.

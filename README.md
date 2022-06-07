@@ -64,7 +64,7 @@ cargo build --release
 ```
 
 <!-- TODO: insert a tutorial on how to compile/install OpenCV in order to use
-it with Rust -->
+it with Rust, maybe an installation script -->
 
 ## Usage
 
@@ -102,11 +102,12 @@ listed an example configuration file:
 ```toml
 # /dev/video<index> camera input
 index = 0
-# input/output framerate (output only in case of `video` option used)
+# input/output framerate (ignored if used with `video`)
 framerate = 10.0
-# input/output resolution (output only in case of `video` option used)
+# input/output resolution (ignored if used with `video`)
+# possible values (16:9 formats): 480p, 576p, 720p, 768p, 900p, 1080p, 1440p, 2160p
 resolution = "720p"
-# date&time video overlay
+# date&time video overlay (ignored if used with `video`)
 overlay = true
 # be quiet (mute stdout)
 quiet = false

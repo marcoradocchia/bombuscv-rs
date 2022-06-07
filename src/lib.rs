@@ -75,7 +75,7 @@ impl ResConversion for Size {
             "1440p" => Size::new(2560, 1440),
             "2160p" => Size::new(3840, 2160),
             res => {
-                eprintln!("error: {res} is not a valid resolution");
+                eprintln!("error: {res} is not a supported resolution");
                 process::exit(1);
             }
         }
