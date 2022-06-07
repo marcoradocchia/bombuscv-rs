@@ -17,7 +17,6 @@
 use crate::args::Args;
 use bombuscv_rs::ResConversion;
 use directories::BaseDirs;
-use ffprobe;
 use opencv::core::Size;
 use serde::Deserialize;
 use std::{
@@ -205,7 +204,7 @@ pub struct Config {
     pub video: Option<PathBuf>,
 
     /// Output video filename format (see
-    /// https://docs.rs/chrono/latest/chrono/format/strftime/index.html for valid specifiers).
+    /// <https://docs.rs/chrono/latest/chrono/format/strftime/index.html> for valid specifiers).
     #[serde(default = "default_format")]
     pub format: String,
 

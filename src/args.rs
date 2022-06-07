@@ -81,7 +81,8 @@ pub struct Args {
     #[clap(short, long, validator = validate_video, conflicts_with_all = &["index", "overlay", "framerate", "resolution"])]
     pub video: Option<PathBuf>,
 
-    /// Output video filename format (see https://docs.rs/chrono/latest/chrono/format/strftime/index.html for valid specifiers).
+    /// Output video filename format (see
+    /// <https://docs.rs/chrono/latest/chrono/format/strftime/index.html> for valid specifiers).
     #[clap(long)]
     pub format: Option<String>,
 
