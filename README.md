@@ -54,6 +54,8 @@ Below a brief example of the produced video output:
 
 https://user-images.githubusercontent.com/74802223/171311278-c5caf303-832f-46f6-a4cc-a3e05f823349.mp4
 
+More examples can be found [here](examples).
+
 ## Install
 
 Clone the repository and build the project with `cargo`:
@@ -84,21 +86,26 @@ OPTIONS:
                                      for valid specifiers)
     -h, --help                       Print help information
     -i, --index <INDEX>              /dev/video<INDEX> capture camera index
-    -o, --overlay                    Enable Date/Time video overlay
+    -o, --overlay                    Enable Date&Time video overlay
     -q, --quiet                      Mute standard output
     -r, --resolution <RESOLUTION>    Video resolution (standard 16:9 formats) [possible values:
                                      480p, 576p, 720p, 768p, 900p, 1080p, 1440p, 2160p]
-    -v, --video <VIDEO>              Input video file
+    -v, --video <VIDEO>              Video file as input
     -V, --version                    Print version information
 ```
 
 ## Configuration
 
-All options can be set in a optional configuration file stored at
+All options can be set in a _optional_ configuration file stored at
 `$XDG_CONFIG_HOME/bombuscv/config.toml` by default or at any location in the
 filesystem specified by setting `BOMBUSCV_CONFIG` environment variable. CLI
-arguments/flags override options defined in the configuration file. Below
-listed an example configuration file:
+arguments/flags override options defined in the configuration file.
+Note that if using `video` option in order to use `bombuscv` with a
+pre-recorded video input, `framerate`, `resolution` and `overlay` options are
+ignored: the first two are auto-detected from the input file using `ffprobe`
+(`ffmpeg` tool), while the last makes no sense if used with a non-live video
+feed; same rules apply to CLI arguments.
+Below listed an example configuration file:
 ```toml
 # /dev/video<index> camera input
 index = 0

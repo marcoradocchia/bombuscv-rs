@@ -196,7 +196,7 @@ pub struct Config {
     #[serde(default = "default_directory")]
     pub directory: PathBuf,
 
-    /// Input video file.
+    /// Video file as input.
     #[validate(custom(
         function = "validate_video",
         message = "given path is not a video file"
