@@ -6,6 +6,8 @@
   ![GitHub open issues](https://img.shields.io/github/issues-raw/marcoradocchia/bombuscv-rs?color=%23d8a657&logo=github)
   ![GitHub open pull requests](https://img.shields.io/github/issues-pr-raw/marcoradocchia/bombuscv-rs?color=%2389b482&logo=github)
   ![GitHub sponsors](https://img.shields.io/github/sponsors/marcoradocchia?color=%23d3869b&logo=github)
+  ![Crates.io downloads](https://img.shields.io/crates/d/bombuscv-rs?label=crates.io%20downloads&logo=rust)
+  ![Crates.io version](https://img.shields.io/crates/v/bombuscv-rs?logo=rust)
   ![GitHub license](https://img.shields.io/github/license/marcoradocchia/bombuscv-rs?color=%23e78a4e)
 </div>
 
