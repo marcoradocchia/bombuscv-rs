@@ -79,9 +79,7 @@ sudo apt-get install -y \
 # TODO: do I need more memory?
 # TODO: If so enlarge memory using swap.
 
-# Download & Compile OpenCV 4.5.5.
-echo "==> Compiling OpenCV v4.5.5..."
-cd $HOME
+# Download OpenCV 4.5.5.
 wget -O opencv.zip https://github.com/opencv/opencv/archive/4.5.5.zip
 wget -O opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/4.5.5.zip
 # unzip downloaded files
@@ -89,7 +87,7 @@ unzip opencv.zip
 unzip opencv_contrib.zip
 # rename directories for convenience
 mv opencv-4.5.5 opencv
-mv opencv_contrib-4.5.5 opencv
+mv opencv_contrib-4.5.5 opencv_contrib
 # remove the zip files
 rm opencv.zip
 rm opencv_contrib.zip
@@ -97,6 +95,9 @@ rm opencv_contrib.zip
 cd opencv
 mkdir build
 cd build
+
+# Compile OpenCV 4.5.5.
+echo "==> Compiling OpenCV v4.5.5..."
 # run cmake
 cmake -D CMAKE_BUILD_TYPE=RELEASE \
   -D CMAKE_INSTALL_PREFIX=/usr/local \
