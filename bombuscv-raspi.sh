@@ -82,10 +82,8 @@ sudo apt-get install -y \
 # Download & Compile OpenCV 4.5.5.
 echo "==> Compiling OpenCV v4.5.5..."
 cd $HOME
-wget -O opencv.zip https://github.com/opencv/opencv/archive/4.5.5.zip || \
-  echo "Error: unable to download OpenCV 4.5.5" && exit 1
-wget -O opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/4.5.5.zip || \
-  echo "Error: unable to download OpenCV 4.5.5 (contrib)" && exit 1
+wget -O opencv.zip https://github.com/opencv/opencv/archive/4.5.5.zip
+wget -O opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/4.5.5.zip
 # unzip downloaded files
 unzip opencv.zip
 unzip opencv_contrib.zip
