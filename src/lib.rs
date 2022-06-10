@@ -31,7 +31,7 @@ use opencv::{
         CAP_PROP_FRAME_HEIGHT, CAP_PROP_FRAME_WIDTH, CAP_V4L2,
     },
 };
-use std::{error::Error, fmt::Display, path::Path, process};
+use std::{error::Error, fmt::Display, os::raw::c_char, path::Path, process};
 
 /// OpenCV related errors.
 #[derive(Debug)]
@@ -93,9 +93,18 @@ impl Codec {
     /// Return the fourcc value associated to the video codec.
     fn fourcc(&self) -> i32 {
         match *self {
-            Codec::MJPG => VideoWriter::fourcc('M' as i8, 'J' as i8, 'P' as i8, 'G' as i8).unwrap(),
-            Codec::XVID => VideoWriter::fourcc('X' as i8, 'V' as i8, 'I' as i8, 'D' as i8).unwrap(),
-            Codec::MP4V => VideoWriter::fourcc('m' as i8, 'p' as i8, '4' as i8, 'v' as i8).unwrap(),
+            Codec::MJPG => {
+                VideoWriter::fourcc('M' as c_char, 'J' as c_char, 'P' as c_char, 'G' as c_char)
+                    .unwrap()
+            }
+            Codec::XVID => {
+                VideoWriter::fourcc('X' as c_char, 'V' as c_char, 'I' as c_char, 'D' as c_char)
+                    .unwrap()
+            }
+            Codec::MP4V => {
+                VideoWriter::fourcc('m' as c_char, 'p' as c_char, '4' as c_char, 'v' as c_char)
+                    .unwrap()
+            }
         }
     }
 }
