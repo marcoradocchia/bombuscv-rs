@@ -60,15 +60,35 @@ More examples can be found [here](examples).
 
 ## Install
 
-Clone the repository and build the project with `cargo`:
+For instllation on *RaspberryPi* check [Install on RaspberryPi
+4](#install-on-raspberrypi-4).
+
+### Requirements
+
+This program requires a working installation of **OpenCV** (`>=4.5.5`).
+Building OpenCV from source is recommended (if you're going to build OpenCV
+from source make sure to also install OpenCV dependencies), although it should
+work with precompiled packages in your distro's repositories (it has been
+tested with success on *ArchLinux* with the `extra/opencv` package).
+
+### Using Cargo
+
+A package is available at [crates.io](https://crates.io/crates/bombuscv-rs). In
+order to install it run `cargo install bombuscv-rs` in your shell.
+
+### Install on RaspberryPi 4
+
+It is strongly recommended to use a RaspberryPi with at least 4GB of RAM. 
+Since installation on a RaspberryPi may be a little bit *tricky*, an
+installation script is provided[^4]. It takes care of updating & preparing the
+system the system, compiling *OpenCV* and installing *Rustup* and finally
+**BombusCV**. You can run the [instllation script](bombuscv-raspi.sh) using
+`curl`:
 ```sh
-git clone https://github.com/marcoradocchia/bombuscv-rs.git
-cd bombuscv-rs
-cargo build --release
+curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/marcoradocchia/bombuscv-rs/master/bombuscv-raspi.sh 
 ```
 
-<!-- TODO: insert a tutorial on how to compile/install OpenCV in order to use
-it with Rust, maybe an installation script -->
+[^4]: RaspberryPi OS 64 bits required in order to install using the script
 
 ## Usage
 
@@ -137,7 +157,7 @@ Complete [CHANGELOG](CHANGELOG.md).
 
 - [ ] Provide build & install instructions in [README](README.md), as well as
   the instructions to install OpenCV.
-- [ ] Make install script for automated installation on RaspberryPi.
+- [x] Make install script for automated installation on RaspberryPi.
 - [x] Passing `video` or `directory` options in the configuration file using
   `~/<path>` results in an error: in the Deserialize expanding `~` to
   absolute path is required.
