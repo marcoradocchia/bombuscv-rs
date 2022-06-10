@@ -85,7 +85,7 @@ system the system, compiling *OpenCV* and installing *Rustup* and finally
 **BombusCV**. You can run the [instllation script](bombuscv-raspi.sh) using
 `curl`:
 ```sh
-curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/marcoradocchia/bombuscv-rs/master/bombuscv-raspi.sh 
+curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/marcoradocchia/bombuscv-rs/master/bombuscv-raspi.sh | sh
 ```
 
 [^4]: RaspberryPi OS 64 bits required in order to install using the script
