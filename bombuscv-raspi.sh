@@ -110,7 +110,7 @@ wget -O opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/4.5.
 unzip opencv.zip
 unzip opencv_contrib.zip
 # rename directories for convenience
-mv opmncv-4.5.5 opencv
+mv opencv-4.5.5 opencv
 mv opencv_contrib-4.5.5 opencv_contrib
 # remove the zip files
 rm opencv.zip
