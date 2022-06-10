@@ -6,12 +6,12 @@ GREEN="\e[1;32m"
 CYAN="\e[1;36m"
 NORM="\e[0m"
 
-echo "$YELLOW██████╗  ██████╗ ███╗   ███╗██████╗ ██╗   ██╗███████╗ ██████╗██╗   ██╗"
-echo        "██╔══██╗██╔═══██╗████╗ ████║██╔══██╗██║   ██║██╔════╝██╔════╝██║   ██║"
-echo   "$NORM██████╔╝██║   ██║██╔████╔██║██████╔╝██║   ██║███████╗██║     ██║   ██║"
-echo        "██╔══██╗██║   ██║██║╚██╔╝██║██╔══██╗██║   ██║╚════██║██║     ╚██╗ ██╔╝"
-echo "$YELLOW██████╔╝╚██████╔╝██║ ╚═╝ ██║██████╔╝╚██████╔╝███████║╚██████╗ ╚████╔╝ "
-echo        "╚═════╝  ╚═════╝ ╚═╝     ╚═╝╚═════╝  ╚═════╝ ╚══════╝ ╚═════╝  ╚═══╝  $NORM"
+echo -e "$YELLOW██████╗  ██████╗ ███╗   ███╗██████╗ ██╗   ██╗███████╗ ██████╗██╗   ██╗"
+echo -e        "██╔══██╗██╔═══██╗████╗ ████║██╔══██╗██║   ██║██╔════╝██╔════╝██║   ██║"
+echo -e   "$NORM██████╔╝██║   ██║██╔████╔██║██████╔╝██║   ██║███████╗██║     ██║   ██║"
+echo -e        "██╔══██╗██║   ██║██║╚██╔╝██║██╔══██╗██║   ██║╚════██║██║     ╚██╗ ██╔╝"
+echo -e "$YELLOW██████╔╝╚██████╔╝██║ ╚═╝ ██║██████╔╝╚██████╔╝███████║╚██████╗ ╚████╔╝ "
+echo -e        "╚═════╝  ╚═════╝ ╚═╝     ╚═╝╚═════╝  ╚═════╝ ╚══════╝ ╚═════╝  ╚═══╝  $NORM"
 
 SWAP_FILE=/etc/dphys-swapfile
 
@@ -33,41 +33,41 @@ yn ()
   done
 }
 
-echo "$CYAN#####################################################################"
-echo      "## Installation helper script for bombuscv-rs (by Marco Radocchia) ##"
-echo      "## Requirement: RaspberryPi 4 (4/8GB), RaspberryPi OS aarch64      ##"
-echo      "#####################################################################$NORM"
+echo -e "$CYAN#####################################################################"
+echo -e      "## Installation helper script for bombuscv-rs (by Marco Radocchia) ##"
+echo -e      "## Requirement: RaspberryPi 4 (4/8GB), RaspberryPi OS aarch64      ##"
+echo -e      "#####################################################################$NORM"
 
 # Check if Raspberry Pi is running RaspberryPi OS 64 bits:
 [ $(uname -m) != "aarch64" -o $(command -v apt-get | wc -l) != 1 ] && \
-  echo "$RED==> Error:$NORM please install RaspberryPi OS 64 bits and retry." && \
+  echo -e "$RED==> Error:$NORM please install RaspberryPi OS 64 bits and retry." && \
   exit 1
 
 # Check if Raspberry is at least 4GB RAM.
 [ $(free --mebi | grep -e "^Mem:" | awk '{print $2}') -lt 3000 ] && \
-  echo "$RED==> Error:$NORM required at least 4GB of RAM." && exit 1
+  echo -e "$RED==> Error:$NORM required at least 4GB of RAM." && exit 1
 
 # Update the system.
-echo "$GREEN==> Updating the system...$NORM"
+echo -e "$GREEN==> Updating the system...$NORM"
 sudo apt-get -y update && sudo apt-get -y upgrade
 
 # Update bootloader.
-echo "$GREEN==> Updating bootloader...$NORM"
+echo -e "$GREEN==> Updating bootloader...$NORM"
 sudo rpi-eeprom-update -a
 
 # Bring gpu memory up to 256MB.
-echo "$GREEN==> Increasing gpu memory...$NORM"
+echo -e "$GREEN==> Increasing gpu memory...$NORM"
 sudo sed -i /boot/config.txt -e s'/gpu_mem=.*/gpu_mem=256/'
 
 # Increasing swap size.
-echo "$GREEN==> Increasing swap size...$NORM"
+echo -e "$GREEN==> Increasing swap size...$NORM"
 # storing the original swap size for later restore
 orig_swap=$(awk -F'=' '/CONF_SWAPSIZE=/ {print $2}' $SWAP_FILE)
 sudo sed -i $SWAP_FILE -e s'/CONF_SWAPSIZE=.*/CONF_SWAPSIZE=4096/'
 sudo /etc/init.d/dphys-swapfile restart
 
 # Install all dependencies with apt-get.
-echo "$GREEN==> Installing dependencies...$NORM"
+echo -e "$GREEN==> Installing dependencies...$NORM"
 sudo apt-get install -y \
   clangd \
   libclang-dev \
@@ -121,7 +121,7 @@ mkdir build
 cd build
 
 # Compile OpenCV 4.5.5.
-echo "$GREEN==> Compiling OpenCV v4.5.5...$NORM"
+echo -e "$GREEN==> Compiling OpenCV v4.5.5...$NORM"
 # run cmake
 cmake -DCMAKE_BUILD_TYPE=RELEASE \
 -DCMAKE_INSTALL_PREFIX=/usr/local \
@@ -168,34 +168,34 @@ cmake -DCMAKE_BUILD_TYPE=RELEASE \
 make -j4
 
 # Install OpenCV 4.5.5
-echo "$GREEN==> Installing OpenCV v4.5.5...$NORM"
+echo -e "$GREEN==> Installing OpenCV v4.5.5...$NORM"
 sudo make install
 sudo ldconfig
 
 # Remove opencv source directories.
-echo "$GREEN==> Removing OpenCV files...$NORM"
+echo -e "$GREEN==> Removing OpenCV files...$NORM"
 rm -rf $HOME/opencv
 rm -rf $HOME/opencv_contrib
 
 # Install rustup.
-echo "$GREEN==> Installing rustup...$NORM"
+echo -e "$GREEN==> Installing rustup...$NORM"
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
 # Source the shell configuration to update the PATH.
 source $HOME/.cargo/env
 
 # Cargo install bombuscv-rs if rustup successfully installed cargo.
-echo "$GREEN==> Installing bombuscv-rs...$NORM"
+echo -e "$GREEN==> Installing bombuscv-rs...$NORM"
 [ $(command -v cargo | wc -l) ] cargo install bombuscv-rs
 
 # Restoring swap size
-echo "$GREEN==> Restoring swap size...$NORM"
+echo -e "$GREEN==> Restoring swap size...$NORM"
 sudo sed -i $SWAP_FILE -e s"/CONF_SWAPSIZE=.*/CONF_SWAPSIZE=$orig_swap/"
 sudo /etc/init.d/dphys-swapfile restart
 
 # Ask for reboot.
 yn
 
-echo "$CYAN#######################################################"
-echo      "## Congratulations! BombusCV successfully installed! ##"
-echo      "#######################################################$NORM"
+echo -e "$CYAN#######################################################"
+echo -e      "## Congratulations! BombusCV successfully installed! ##"
+echo -e      "#######################################################$NORM"
