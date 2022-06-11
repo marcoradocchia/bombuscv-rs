@@ -15,7 +15,7 @@ echo        "╚═════╝  ╚═════╝ ╚═╝     ╚═�
 
 SWAP_FILE=/etc/dphys-swapfile
 
-yn ()
+reboot_yn ()
 {
   while true; do
     read -p "Reboot required. Would you like to reboot now? [Y/n] " ans
@@ -31,6 +31,13 @@ yn ()
         echo "Please answer [Y]es or [N]o..."
     esac
   done
+}
+
+greet ()
+{
+  echo "$CYAN#######################################################"
+  echo      "## Congratulations! BombusCV successfully installed! ##"
+  echo      "#######################################################$NORM"
 }
 
 echo "$CYAN#####################################################################"
@@ -69,7 +76,7 @@ sudo /etc/init.d/dphys-swapfile restart
 # Install all dependencies with apt-get.
 echo "$GREEN==> Installing dependencies...$NORM"
 sudo apt-get install -y \
-  clangd \
+  clang \
   libclang-dev \
   build-essential \
   cmake \
@@ -179,12 +186,13 @@ rm -rf $HOME/opencv_contrib
 echo "$GREEN==> Installing rustup...$NORM"
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
-# Source the shell configuration to update the PATH.
-source $HOME/.cargo/env
-
 # Cargo install bombuscv-rs if rustup successfully installed cargo.
-echo "$GREEN==> Installing bombuscv-rs...$NORM"
-[ $(command -v cargo | wc -l) ] cargo install bombuscv-rs
+if [ $? = 0 ]; then 
+  echo "$GREEN==> Installing bombuscv-rs...$NORM"
+  $HOME/.cargo/bin/cargo install bombuscv-rs && greet
+else
+  echo "$RED==> Error:$NORM unable to install rustup, please retry."
+fi
 
 # Restoring swap size
 echo "$GREEN==> Restoring swap size...$NORM"
@@ -192,8 +200,4 @@ sudo sed -i $SWAP_FILE -e s"/CONF_SWAPSIZE=.*/CONF_SWAPSIZE=$orig_swap/"
 sudo /etc/init.d/dphys-swapfile restart
 
 # Ask for reboot.
-yn
-
-echo "$CYAN#######################################################"
-echo      "## Congratulations! BombusCV successfully installed! ##"
-echo      "#######################################################$NORM"
+reboot_yn
