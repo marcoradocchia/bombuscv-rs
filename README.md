@@ -81,7 +81,7 @@ order to install it run `cargo install bombuscv-rs` in your shell.
 It is strongly recommended to use a RaspberryPi with at least 4GB of RAM. 
 Since installation on a RaspberryPi may be a little bit *tricky*, an
 installation script is provided[^4]. It takes care of updating & preparing the
-system the system, compiling *OpenCV* and installing *Rustup* and finally
+system, compiling *OpenCV* and installing *Rustup* and finally
 **BombusCV**. You can run the [instllation script](bombuscv-raspi.sh) using
 `curl`:
 ```sh
