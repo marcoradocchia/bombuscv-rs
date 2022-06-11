@@ -21,7 +21,7 @@ reboot_yn ()
     read -p "Reboot required. Would you like to reboot now? [Y/n] " ans
     case $ans in
       [Yy])
-        reboot
+        sudo reboot
         ;;
       [Nn])
         echo "Please reboot before running bombuscv!";
