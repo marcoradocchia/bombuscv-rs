@@ -93,7 +93,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/marcorado
 ## Usage
 
 ```
-bombuscv-rs 0.1.0
+bombuscv-rs 0.1.1
 Marco Radocchia <marco.radocchia@outlook.com>
 OpenCV based motion detection/recording software built for research on bumblebees.
 
