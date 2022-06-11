@@ -160,6 +160,9 @@ echo "$GREEN==> Installing OpenCV v4.5.5...$NORM"
 sudo make install
 sudo ldconfig
 
+# changing cwd back to $HOME 
+cd $HOME
+
 # Remove opencv source directories.
 echo "$GREEN==> Removing OpenCV files...$NORM"
 rm -rf $HOME/opencv
