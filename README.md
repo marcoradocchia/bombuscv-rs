@@ -8,6 +8,7 @@
   ![GitHub sponsors](https://img.shields.io/github/sponsors/marcoradocchia?color=%23d3869b&logo=github)
   ![Crates.io downloads](https://img.shields.io/crates/d/bombuscv-rs?label=crates.io%20downloads&logo=rust)
   ![Crates.io version](https://img.shields.io/crates/v/bombuscv-rs?logo=rust)
+  ![Discord](https://img.shields.io/discord/985154521946816595?label=chat%20support&logo=discord&logoColor=%23ffff)
   ![GitHub license](https://img.shields.io/github/license/marcoradocchia/bombuscv-rs?color=%23e78a4e)
 </div>
 
@@ -23,6 +24,7 @@ on **Bumblebees** (hence the name).
 - [Configuration](#configuration)
 - [Changelog](#changelog)
 - [ToDo](#todo)
+- [Chat Support](#chat-support)
 - [License](#license)
 
 ## Use case
@@ -54,13 +56,17 @@ manual video trimming.
 
 Below a brief example of the produced video output:
 
+<div align="center">
+
 https://user-images.githubusercontent.com/74802223/171311278-c5caf303-832f-46f6-a4cc-a3e05f823349.mp4
+
+</div>
 
 More examples can be found [here](examples).
 
 ## Install
 
-For instllation on *RaspberryPi* check [Install on RaspberryPi
+For installation on *RaspberryPi* check [Install on RaspberryPi
 4](#install-on-raspberrypi-4).
 
 ### Requirements
@@ -132,7 +138,7 @@ Below listed an example configuration file:
 # /dev/video<index> camera input
 index = 0
 # input/output framerate (ignored if used with `video`)
-framerate = 10.0
+framerate = 60.0
 # input/output resolution (ignored if used with `video`)
 # possible values (16:9 formats): 480p, 576p, 720p, 768p, 900p, 1080p, 1440p, 2160p
 resolution = "720p"
@@ -170,6 +176,16 @@ Complete [CHANGELOG](CHANGELOG.md).
 - [x] Add thread signalling to interrupt grabber thread and gracefully
   terminate the execution.
 - [x] Move logic from `main` to newly defined `run`.
+
+## Chat Support
+
+Join Discord server for installation or usage chat support:
+
+<div align="center">
+
+[![Join our Discord server!](https://invidget.switchblade.xyz/srNGQEs2QA?language=en)](http://discord.gg/srNGQEs2QA)
+
+</div>
 
 ## License
 
