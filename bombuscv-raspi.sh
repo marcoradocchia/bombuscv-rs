@@ -28,7 +28,7 @@ reboot_yn ()
         exit
         ;;
       *)
-        echo "Please answer [Y]es or [N]o..."
+        echo "Please answer [Yy]es or [Nn]o..."
     esac
   done
 }
