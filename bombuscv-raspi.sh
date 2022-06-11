@@ -15,24 +15,6 @@ echo        "╚═════╝  ╚═════╝ ╚═╝     ╚═�
 
 SWAP_FILE=/etc/dphys-swapfile
 
-reboot_yn ()
-{
-  while true; do
-    read -p "Reboot required. Would you like to reboot now? [Y/n] " ans
-    case $ans in
-      [Yy])
-        sudo reboot
-        ;;
-      [Nn])
-        echo "Please reboot before running bombuscv!";
-        exit
-        ;;
-      *)
-        echo "Please answer [Yy]es or [Nn]o..."
-    esac
-  done
-}
-
 greet ()
 {
   echo "$CYAN#######################################################"
@@ -43,6 +25,7 @@ greet ()
 echo "$CYAN#####################################################################"
 echo      "## Installation helper script for bombuscv-rs (by Marco Radocchia) ##"
 echo      "## Requirement: RaspberryPi 4 (4/8GB), RaspberryPi OS aarch64      ##"
+echo      "## Warning: the installation process may take a while (>1h)...     ##"
 echo      "#####################################################################$NORM"
 
 # Check if Raspberry Pi is running RaspberryPi OS 64 bits:
@@ -199,5 +182,6 @@ echo "$GREEN==> Restoring swap size...$NORM"
 sudo sed -i $SWAP_FILE -e s"/CONF_SWAPSIZE=.*/CONF_SWAPSIZE=$orig_swap/"
 sudo /etc/init.d/dphys-swapfile restart
 
-# Ask for reboot.
-reboot_yn
+echo "$CYAN#################################################"
+echo      "## Please reboot your system before continung. ##"
+echo      "#################################################$NORM"
