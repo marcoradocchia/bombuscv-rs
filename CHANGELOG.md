@@ -1,3 +1,20 @@
+# [Unreleased]
+
+Updated
+[README](https://github.com/marcoradocchia/bombuscv-rs/blob/master/README.md)
+*Usage* and *Configuration* sections.
+
+## Fixed
+
+Issue marcoradocchia/bombuscv-rs#1 which prevented `bombuscv` to autodetect
+video framerate and resolution on `video` CLI option used.
+
+## Removed
+
+- Option to specify `video` in the configuration file in favor of passing video
+  file via CLI argument.
+
+
 # [0.1.1] - 2022-06-11
 
 Updated
