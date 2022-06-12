@@ -230,8 +230,9 @@ impl MotionDetector {
         }
     }
 
-    /// Receive grabbed frame and detect motion, returning `Some(Frame)` if motion is detected,
-    /// `None` if no motion is detected.
+    /// Receive grabbed frame and detect motion and returns:
+    /// - `Ok`: if `Some(Frame)` motion detected; if `None` no motion detected.
+    /// - `Err`: `frame` was empty and could not be processed.
     pub fn detect_motion(&mut self, frame: Frame) -> Result<Option<Frame>, FrameError> {
         // Create the resized_frame.
         let mut resized_frame = Mat::default();
