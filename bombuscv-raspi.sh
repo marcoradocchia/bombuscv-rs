@@ -93,23 +93,23 @@ sudo apt-get install -y \
   libgflags-dev \
   protobuf-compiler
 
-# Download OpenCV 4.5.5.
-wget -O opencv.zip https://github.com/opencv/opencv/archive/4.5.5.zip
-wget -O opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/4.5.5.zip
+# Download OpenCV 4.6.0.
+wget -O opencv.zip https://github.com/opencv/opencv/archive/4.6.0.zip
+wget -O opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/4.6.0.zip
 # unzip downloaded files
 unzip opencv.zip
 unzip opencv_contrib.zip
 # rename directories for convenience
-mv opencv-4.5.5 opencv
-mv opencv_contrib-4.5.5 opencv_contrib
+mv opencv-4.6.0 opencv
+mv opencv_contrib-4.6.0 opencv_contrib
 # remove the zip files
 rm opencv.zip
 rm opencv_contrib.zip
 # create the build directory
 cd opencv && mkdir build && cd build
 
-# Compile OpenCV 4.5.5.
-echo "$GREEN==> Compiling OpenCV v4.5.5...$NORM"
+# Compile OpenCV 4.6.0.
+echo "$GREEN==> Compiling OpenCV v4.6.0...$NORM"
 # run cmake
 cmake -DCMAKE_BUILD_TYPE=RELEASE \
 -DCMAKE_INSTALL_PREFIX=/usr/local \
@@ -155,8 +155,8 @@ cmake -DCMAKE_BUILD_TYPE=RELEASE \
 # run make using all 4 cores
 make -j4
 
-# Install OpenCV 4.5.5
-echo "$GREEN==> Installing OpenCV v4.5.5...$NORM"
+# Install OpenCV 4.6.0
+echo "$GREEN==> Installing OpenCV v4.6.0...$NORM"
 sudo make install
 sudo ldconfig
 
