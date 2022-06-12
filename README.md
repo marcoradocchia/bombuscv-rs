@@ -122,18 +122,20 @@ OPTIONS:
     -V, --version                    Print version information
 ```
 
+Note that `video` option, which runs `bombuscv` with a pre-recorded video
+input, is incompatible with `framerate`, `resolution` and `overlay`. Also, if
+these options are specified in the configuration file, they are going to be
+ignored. This because the first two are auto-detected from the input file using
+`ffprobe` (`ffmpeg` tool), while the last makes no sense if used with a
+non-live video feed; same rules apply to CLI arguments.
+
 ## Configuration
 
-All options can be set in a _optional_ configuration file stored at
-`$XDG_CONFIG_HOME/bombuscv/config.toml` by default or at any location in the
-filesystem specified by setting `BOMBUSCV_CONFIG` environment variable. CLI
-arguments/flags override options defined in the configuration file.
-Note that if using `video` option in order to use `bombuscv` with a
-pre-recorded video input, `framerate`, `resolution` and `overlay` options are
-ignored: the first two are auto-detected from the input file using `ffprobe`
-(`ffmpeg` tool), while the last makes no sense if used with a non-live video
-feed; same rules apply to CLI arguments.
-Below listed an example configuration file:
+All options (except `video`) can be set in a _optional_ configuration file
+stored at `$XDG_CONFIG_HOME/bombuscv/config.toml` by default or at any location
+in the filesystem specified by setting `BOMBUSCV_CONFIG` environment variable.
+CLI arguments/flags override options defined in the configuration file. Below
+listed an example configuration file:
 ```toml
 # /dev/video<index> camera input
 index = 0
@@ -151,8 +153,6 @@ directory = "~/output_directory/"
 # output video filename format (see
 # https://docs.rs/chrono/latest/chrono/format/strftime/index.html for valid specifiers)
 format = "%Y-%m-%dT%H:%M:%S"
-# input video file (replaces live camera input; conflicts with index, overlay)
-# video = "~/input_video.mkv"
 ```
 
 ## Changelog
