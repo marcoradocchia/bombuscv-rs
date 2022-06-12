@@ -44,7 +44,7 @@ pub fn validate_directory(directory: &str) -> Result<(), String> {
 fn validate_video(video: &str) -> Result<(), String> {
     match expand_home(&PathBuf::from(video)).is_file() {
         true => Ok(()),
-        false => Err(String::from("the given path is not a video file")),
+        false => Err(String::from("the given path is not a file")),
     }
 }
 
@@ -61,6 +61,10 @@ pub struct Args {
     #[clap(short, long)]
     pub index: Option<u8>,
 
+    /// Video file as input.
+    #[clap(short, long, validator = validate_video, conflicts_with_all = &["index", "overlay", "framerate", "resolution"])]
+    pub video: Option<PathBuf>,
+
     /// Video framerate.
     #[clap(short, long, validator = validate_framerate)]
     pub framerate: Option<f64>,
@@ -76,10 +80,6 @@ pub struct Args {
     /// Output video directory.
     #[clap(short, long, validator = validate_directory)]
     pub directory: Option<PathBuf>,
-
-    /// Video file as input.
-    #[clap(short, long, validator = validate_video, conflicts_with_all = &["index", "overlay", "framerate", "resolution"])]
-    pub video: Option<PathBuf>,
 
     /// Output video filename format (see
     /// <https://docs.rs/chrono/latest/chrono/format/strftime/index.html> for valid specifiers).
