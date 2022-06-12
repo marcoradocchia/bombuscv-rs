@@ -94,8 +94,8 @@ sudo apt-get install -y \
   protobuf-compiler
 
 # Download OpenCV 4.5.5.
-wget -O opencv.zip https://github.com/opencv/opencv/archive/4.5.5.zip
-wget -O opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/4.5.5.zip
+wget -O opencv.zip https://github.com/opencv/opencv/archive/4.6.0.zip
+wget -O opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/4.6.0.zip
 # unzip downloaded files
 unzip opencv.zip
 unzip opencv_contrib.zip
