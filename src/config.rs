@@ -20,7 +20,9 @@ use directories::BaseDirs;
 use opencv::core::Size;
 use serde::Deserialize;
 use std::{
-    env, fs,
+    env,
+    fmt::Debug,
+    fs,
     path::{Path, PathBuf},
     process,
     string::String,
@@ -131,14 +133,6 @@ fn validate_directory(path: &Path) -> Result<(), ValidationError> {
     }
 }
 
-/// Validate input video path.
-fn validate_video(path: &Path) -> Result<(), ValidationError> {
-    match expand_home(path).is_file() {
-        true => Ok(()),
-        false => Err(ValidationError::new("path")),
-    }
-}
-
 /// Default value for /dev/video<index> capture camera index.
 fn default_index() -> u8 {
     0
@@ -177,6 +171,10 @@ pub struct Config {
     #[serde(default = "default_index")]
     pub index: u8,
 
+    /// Video file as input.
+    #[serde(skip_deserializing)]
+    pub video: Option<PathBuf>,
+
     /// Video framerate.
     #[validate(range(min = 1.0, message = "invalid framerate (must be >1.0)"))]
     #[serde(default = "default_framerate")]
@@ -194,14 +192,6 @@ pub struct Config {
     ))]
     #[serde(default = "default_directory")]
     pub directory: PathBuf,
-
-    /// Video file as input.
-    #[validate(custom(
-        function = "validate_video",
-        message = "given path is not a video file"
-    ))]
-    #[serde(default)]
-    pub video: Option<PathBuf>,
 
     /// Output video filename format (see
     /// <https://docs.rs/chrono/latest/chrono/format/strftime/index.html> for valid specifiers).
@@ -223,10 +213,10 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             index: default_index(),
+            video: None,
             framerate: default_framerate(),
             resolution: default_resolution(),
             directory: default_directory(),
-            video: None,
             format: default_format(),
             overlay: false,
             quiet: false,
@@ -237,23 +227,18 @@ impl Default for Config {
 impl Config {
     /// Parse configuration from config file.
     pub fn parse() -> Self {
-        let mut config = if let Some(base_dirs) = BaseDirs::new() {
-            // Below the OS specific config dir values.
-            // Lin: /home/alice/.config/
-            // Mac: /Users/Alice/Library/Application Support/
-            // Win: C:\Users\Alice\AppData\Roaming\
-
+        let config = if let Some(base_dirs) = BaseDirs::new() {
             // Fetch the environment variables for BOMBUSCV_CONFIG to hold a custom path to store
             // the configuration file.
             let config_file = fs::read_to_string(match env::var("BOMBUSCV_CONFIG") {
-                // BOMBUSCV_CONFIG env variable set, so expand home and use it as the config
+                // BOMBUSCV_CONFIG env variable set, so expand home and use it as the config.
                 Ok(path) => expand_home(Path::new(&path)),
                 // BOMBUSCV_CONFIG env variable unset or invalid: use default config file location.
                 Err(_) => base_dirs
-                    .config_dir()
+                    .config_dir() // XDG base spec directories: ~/.config/bomsucv/config.toml
                     .join(Path::new("bombuscv/config.toml")),
             })
-            .unwrap_or_default();
+            .unwrap_or_default(); // On Err variant, return empty string (==> default config).
 
             // Parse toml configuration file.
             let config: Config = match toml::from_str(&config_file) {
@@ -265,69 +250,67 @@ impl Config {
             };
 
             // Values passed the parsing, now validate config values.
-            match config.validate() {
-                // Values pass validation, return parsed configuration.
-                Ok(_) => config,
-                // Values don't pass validation, return default configuration and warn the user.
-                Err(errors) => {
-                    // TODO: not very elegant
-                    // Gather all the invalid value into a sting and display it as an error
-                    // message.
-                    let mut error_msg = String::from(
-                        "error [config]: invalid configuration options, using defaults\n",
-                    );
-                    for err in errors.field_errors() {
-                        let msg = &err.1.first().unwrap().message;
-                        error_msg.push_str(&format!("-> {}: {}\n", err.0, msg.as_ref().unwrap()));
-                    }
-                    error_msg.pop(); // remove last new line
-                    eprintln!("{}", error_msg);
-
-                    Config::default()
+            if let Err(errors) = config.validate() {
+                // Iterate over validation errors and display error messages to stderr.
+                eprintln!("error [config]: invalid configuration options, using defaults");
+                for (err, msg) in errors.field_errors() {
+                    eprintln!("\t-> '{}': {}", err, msg.first().unwrap());
                 }
+
+                // Values didn't pass validation, return default configuration and warn the user.
+                Config::default()
+            } else {
+                config
             }
         } else {
             eprintln!("warning [config]: no valid config path found on the system, using defaults");
             Config::default()
         };
 
-        if let Some(video) = config.video {
-            // If video path is given using `~` as HOME directory, expand to absolute path.
-            let video = expand_home(&video);
-
-            // Update `resolution` & `framerate` fields in Config using those found in the video's
-            // metadata.
-            (config.resolution, config.framerate) = video_metadata(&video);
-            // Update the Config field with the absolute path.
-            config.video = Some(video);
-
-            // If overlay was set, disable it and warn the user.
-            if config.overlay {
-                config.overlay = false;
-                eprintln!(
-                    "warning [config]: ignoring `overlay` option while using `video` option."
-                );
-            }
-
-            if !config.quiet {
-                println!(
-                    "info [config]: using `video` original resolution and framerate; \
-                    ignoring eventually specified values."
-                );
-            }
-        }
-
-        // If video directory is given using ~ as home directory, expand to absolute path.
-        config.directory = expand_home(&config.directory);
-
         config
     }
 
     /// Override configuration with command line arguments.
     pub fn override_with_args(mut self, args: Args) -> Self {
+        if let Some(directory) = args.directory {
+            self.directory = directory;
+        }
+
+        if let Some(format) = args.format {
+            self.format = format;
+        }
+
+        if args.quiet {
+            self.quiet = true;
+        }
+
+        // Input is video: override resolution & framerate from config or args & disable overlay.
+        if let Some(video) = args.video {
+            (self.resolution, self.framerate) = video_metadata(&video);
+
+            self.video = Some(video);
+
+            if self.overlay {
+                self.overlay = false;
+                eprintln!(
+                    "warning [config]: ignoring `overlay` while using `video` option."
+                );
+            }
+
+            if !self.quiet {
+                println!(
+                    "info [config]: using `video` original `resolution` and `framerate`, \
+                    ignoring eventually specified values."
+                );
+            }
+
+            return self;
+        }
+
         if let Some(index) = args.index {
             self.index = index;
         }
+
         if let Some(framerate) = args.framerate {
             if self.video.is_some() {
                 eprintln!("warning [args]: ignoring `framerate` while using `video` option (auto-detected parameter).")
@@ -335,6 +318,7 @@ impl Config {
                 self.framerate = framerate;
             }
         }
+
         if let Some(resolution) = args.resolution {
             if self.video.is_some() {
                 eprintln!("warning [args]: ignoring `resolution` while using `video` option (auto-detected parameter).")
@@ -342,22 +326,7 @@ impl Config {
                 self.resolution = resolution;
             }
         }
-        if let Some(directory) = args.directory {
-            self.directory = directory;
-        };
-        if let Some(video) = args.video {
-            self.video = Some(video);
-            // If overlay option is set in config file & Video CLI argument is provided, then
-            // automatically disable video overlay since it makes no sense with non live captured
-            // frames.
-            if self.overlay {
-                eprintln!("warning [args]: ignoring `overlay` option in configuration file while using `video` CLI argument.");
-                self.overlay = false;
-            }
-        }
-        if let Some(format) = args.format {
-            self.format = format;
-        }
+
         if args.overlay {
             // Overlay CLI flag is provided, but video is provided in configuration option: ignoring
             // overlay (date&time video overlay) option since it makes no sense with non live
@@ -370,9 +339,8 @@ impl Config {
                 self.overlay = true;
             }
         }
-        if args.quiet {
-            self.quiet = true;
-        }
+
+
         self
     }
 }

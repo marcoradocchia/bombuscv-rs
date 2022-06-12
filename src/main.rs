@@ -38,8 +38,7 @@ use std::{
 fn main() {
     // Parse CLI arguments.
     let args = Args::parse();
-
-    // Parse config and override options with CLI arguments where provided.
+    // Parse config and override options with CLI arguments, where provided.
     let config = Config::parse().override_with_args(args);
 
     // Format video file path as <config.directory/date&time>.
