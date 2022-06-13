@@ -18,7 +18,7 @@ use crate::args::Args;
 use bombuscv_rs::ResConversion;
 use directories::BaseDirs;
 use opencv::core::Size;
-use serde::Deserialize;
+use serde::{de, Deserialize, Deserializer};
 use std::{
     env,
     fmt::Debug,
@@ -27,7 +27,6 @@ use std::{
     process,
     string::String,
 };
-use validator::{Validate, ValidationError};
 
 const VALID_RESOLUTIONS: [&str; 8] = [
     "480p", "576p", "720p", "768p", "900p", "1080p", "1440p", "2160p",
@@ -117,19 +116,49 @@ pub fn expand_home(path: &Path) -> PathBuf {
     }
 }
 
-/// Validate video resolution config option.
-fn validate_resolution(resolution: &str) -> Result<(), ValidationError> {
-    match VALID_RESOLUTIONS.contains(&resolution) {
-        true => Ok(()),
-        false => Err(ValidationError::new("possible_value")),
+/// Custom deserializer for `directory` field: automatically expands ~ and creates PathBuf.
+fn deserialize_directory<'de, D>(d: D) -> Result<PathBuf, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let path = expand_home(&PathBuf::deserialize(d)?);
+    match path.is_dir() {
+        true => Ok(path),
+        false => Err(de::Error::custom(
+            "specified `directory` option is not a valid path",
+        )),
     }
 }
 
-/// Validate output video directory path.
-fn validate_directory(path: &Path) -> Result<(), ValidationError> {
-    match expand_home(path).is_dir() {
-        true => Ok(()),
-        false => Err(ValidationError::new("path")),
+/// Custom deserializer for `framerate` field: checks if field value is >1.0.
+fn deserialize_framerate<'de, D>(d: D) -> Result<f64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let framerate = f64::deserialize(d)?;
+    if framerate > 1. {
+        Ok(framerate)
+    } else {
+        Err(de::Error::invalid_value(
+            de::Unexpected::Float(framerate),
+            &"a value > 1.0",
+        ))
+    }
+}
+
+/// Custom deserializer for `resolution` field: checks for `resolution` in possible values.
+fn deserialize_resolution<'de, D>(d: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let resolution = String::deserialize(d)?;
+
+    match VALID_RESOLUTIONS.contains(&resolution.as_str()) {
+        true => Ok(resolution),
+        false => Err(de::Error::invalid_value(
+            de::Unexpected::Str(&resolution),
+            &format!("{:?}", VALID_RESOLUTIONS).as_str(),
+        )),
     }
 }
 
@@ -165,7 +194,7 @@ fn default_format() -> String {
 }
 
 /// Configuration options.
-#[derive(Deserialize, Validate, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct Config {
     /// /dev/video<index> capture camera index.
     #[serde(default = "default_index")]
@@ -176,21 +205,24 @@ pub struct Config {
     pub video: Option<PathBuf>,
 
     /// Video framerate.
-    #[validate(range(min = 1.0, message = "invalid framerate (must be >1.0)"))]
-    #[serde(default = "default_framerate")]
+    #[serde(
+        default = "default_framerate",
+        deserialize_with = "deserialize_framerate"
+    )]
     pub framerate: f64,
 
     /// Video resolution (standard 16:9 formats).
-    #[validate(custom(function = "validate_resolution", message = "invalid resolution value"))]
-    #[serde(default = "default_resolution")]
+    #[serde(
+        default = "default_resolution",
+        deserialize_with = "deserialize_resolution"
+    )]
     pub resolution: String,
 
     /// Output video directory.
-    #[validate(custom(
-        function = "validate_directory",
-        message = "given path is not a directory"
-    ))]
-    #[serde(default = "default_directory")]
+    #[serde(
+        default = "default_directory",
+        deserialize_with = "deserialize_directory"
+    )]
     pub directory: PathBuf,
 
     /// Output video filename format (see
@@ -227,7 +259,7 @@ impl Default for Config {
 impl Config {
     /// Parse configuration from config file.
     pub fn parse() -> Self {
-        let config = if let Some(base_dirs) = BaseDirs::new() {
+        if let Some(base_dirs) = BaseDirs::new() {
             // Fetch the environment variables for BOMBUSCV_CONFIG to hold a custom path to store
             // the configuration file.
             let config_file = fs::read_to_string(match env::var("BOMBUSCV_CONFIG") {
@@ -241,33 +273,18 @@ impl Config {
             .unwrap_or_default(); // On Err variant, return empty string (==> default config).
 
             // Parse toml configuration file.
-            let config: Config = match toml::from_str(&config_file) {
+            match toml::from_str(&config_file) {
                 Err(e) => {
-                    eprintln!("error [config]: invalid config '{e}', using defaults");
+                    eprintln!("error [config]: {e}");
+                    eprintln!("warning [config]: using defaults");
                     Config::default()
                 }
                 Ok(config) => config,
-            };
-
-            // Values passed the parsing, now validate config values.
-            if let Err(errors) = config.validate() {
-                // Iterate over validation errors and display error messages to stderr.
-                eprintln!("error [config]: invalid configuration options, using defaults");
-                for (err, msg) in errors.field_errors() {
-                    eprintln!("\t-> '{}': {}", err, msg.first().unwrap());
-                }
-
-                // Values didn't pass validation, return default configuration and warn the user.
-                Config::default()
-            } else {
-                config
             }
         } else {
             eprintln!("warning [config]: no valid config path found on the system, using defaults");
             Config::default()
-        };
-
-        config
+        }
     }
 
     /// Override configuration with command line arguments.
@@ -292,9 +309,7 @@ impl Config {
 
             if self.overlay {
                 self.overlay = false;
-                eprintln!(
-                    "warning [config]: ignoring `overlay` while using `video` option."
-                );
+                eprintln!("warning [config]: ignoring `overlay` while using `video` option.");
             }
 
             if !self.quiet {
@@ -339,7 +354,6 @@ impl Config {
                 self.overlay = true;
             }
         }
-
 
         self
     }
