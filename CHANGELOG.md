@@ -1,4 +1,4 @@
-# [Unreleased]
+# [0.2.0] - 2022-06-13
 
 Updated
 [README](https://github.com/marcoradocchia/bombuscv-rs/blob/master/README.md)

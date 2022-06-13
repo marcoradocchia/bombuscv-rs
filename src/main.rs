@@ -38,6 +38,8 @@ use std::{
 fn main() {
     // Parse CLI arguments.
     let args = Args::parse();
+    dbg!(args);
+    panic!();
     // Parse config and override options with CLI arguments, where provided.
     let config = Config::parse().override_with_args(args);
 

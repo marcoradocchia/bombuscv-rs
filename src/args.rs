@@ -15,35 +15,37 @@
 // this program. If not, see https://www.gnu.org/licenses/.
 
 use crate::config::expand_home;
+use clap::ArgAction::{Set, SetTrue};
 pub use clap::Parser;
 use std::path::PathBuf;
 
-/// Validate framerate CLI argument.
-pub fn validate_framerate(framerate: &str) -> Result<(), String> {
-    let err_msg = || String::from("the framerate must be a positive floating point number.");
-    match framerate.parse::<f64>() {
-        Ok(framerate) => {
-            if framerate < 0. {
-                return Err(err_msg());
-            }
-            Ok(())
+/// Parse framerate CLI argument.
+pub fn parse_framerate(framerate: &str) -> Result<f64, String> {
+    let err_msg = || String::from("the framerate must be a positive floating point number");
+    if let Ok(framerate) = framerate.parse::<f64>() {
+        if framerate <= 1. {
+            return Err(err_msg());
         }
-        Err(_) => Err(err_msg()),
+        Ok(framerate)
+    } else {
+        Err(err_msg())
     }
 }
 
-/// Validate output video directory.
-pub fn validate_directory(directory: &str) -> Result<(), String> {
-    match expand_home(&PathBuf::from(directory)).is_dir() {
-        true => Ok(()),
+/// Parse output video directory.
+pub fn parse_directory(directory: &str) -> Result<PathBuf, String> {
+    let directory = expand_home(&PathBuf::from(directory));
+    match directory.is_dir() {
+        true => Ok(directory),
         false => Err(String::from("the given path is not a directory")),
     }
 }
 
-/// Validate input video path.
-fn validate_video(video: &str) -> Result<(), String> {
-    match expand_home(&PathBuf::from(video)).is_file() {
-        true => Ok(()),
+/// Parse input video path.
+fn parse_video(video: &str) -> Result<PathBuf, String> {
+    let video = expand_home(&PathBuf::from(video));
+    match video.is_file() {
+        true => Ok(video),
         false => Err(String::from("the given path is not a file")),
     }
 }
@@ -58,39 +60,44 @@ fn validate_video(video: &str) -> Result<(), String> {
 )]
 pub struct Args {
     /// /dev/video<INDEX> capture camera index.
-    #[clap(short, long)]
+    #[clap(short, long, action = Set)]
     pub index: Option<u8>,
 
     /// Video file as input.
-    #[clap(short, long, validator = validate_video, conflicts_with_all = &["index", "overlay", "framerate", "resolution"])]
+    #[clap(
+        short,
+        long,
+        value_parser = parse_video,
+        conflicts_with_all = &["index", "overlay", "framerate", "resolution"]
+    )]
     pub video: Option<PathBuf>,
 
     /// Video framerate.
-    #[clap(short, long, validator = validate_framerate)]
+    #[clap(short, long, value_parser = parse_framerate)]
     pub framerate: Option<f64>,
 
     /// Video resolution (standard 16:9 formats).
     #[clap(
         short,
         long,
-        possible_values = ["480p", "576p", "720p", "768p", "900p", "1080p", "1440p", "2160p"]
+        value_parser = ["480p", "576p", "720p", "768p", "900p", "1080p", "1440p", "2160p"]
     )]
     pub resolution: Option<String>,
 
     /// Output video directory.
-    #[clap(short, long, validator = validate_directory)]
+    #[clap(short, long, value_parser = parse_directory)]
     pub directory: Option<PathBuf>,
 
     /// Output video filename format (see
     /// <https://docs.rs/chrono/latest/chrono/format/strftime/index.html> for valid specifiers).
-    #[clap(long)]
+    #[clap(long, action = Set)]
     pub format: Option<String>,
 
     /// Enable Date&Time video overlay.
-    #[clap(short, long)]
+    #[clap(short, long, action = SetTrue)]
     pub overlay: bool,
 
     /// Mute standard output.
-    #[clap(short, long)]
+    #[clap(short, long, action = SetTrue)]
     pub quiet: bool,
 }
