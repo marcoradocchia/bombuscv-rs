@@ -13,7 +13,7 @@ video framerate and resolution on `video` CLI option used.
 
 - Option to specify `video` in the configuration file in favor of passing video
   file via CLI argument.
-
+- Dependency `validator`: moved config file options validation to `serde`.
 
 # [0.1.1] - 2022-06-11
 
