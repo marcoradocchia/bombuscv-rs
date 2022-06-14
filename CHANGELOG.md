@@ -1,13 +1,17 @@
-# [0.2.0] - 2022-06-13
+# [0.2.0] - 2022-06-14
 
 Updated
 [README](https://github.com/marcoradocchia/bombuscv-rs/blob/master/README.md)
-*Usage* and *Configuration* sections.
+*Examples*, *Usage* and *Configuration* sections.
+
+## Changed
+
+- Updated `bombuscv-raspi.sh` script to install **OpenCV** `v4.6.0`.
 
 ## Fixed
 
-Issue marcoradocchia/bombuscv-rs#1 which prevented `bombuscv` to autodetect
-video framerate and resolution on `video` CLI option used.
+- Issue marcoradocchia/bombuscv-rs#1 which prevented `bombuscv` to autodetect
+  video framerate and resolution on `video` CLI option used.
 
 ## Removed
 

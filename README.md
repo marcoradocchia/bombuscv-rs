@@ -84,12 +84,13 @@ order to install it run `cargo install bombuscv-rs` in your shell.
 
 ### Install on RaspberryPi 4
 
-It is strongly recommended to use a RaspberryPi with at least 4GB of RAM. 
-Since installation on a RaspberryPi may be a little bit *tricky*, an
-installation script is provided[^4]. It takes care of updating & preparing the
-system, compiling *OpenCV* and installing *Rustup* and finally
-**BombusCV**. You can run the [instllation script](bombuscv-raspi.sh) using
-`curl`:
+It is strongly recommended to use a RaspberryPi with at least 4GB of RAM. Also,
+before trying to install, please enable *Legacy Camera* support under
+*Interface options*  running `raspi-config` and reboot. Since installation on
+a RaspberryPi may be a little bit *tricky*, an installation script is
+provided[^4]. It takes care of updating & preparing the system, compiling
+*OpenCV* and installing *Rustup* and finally **BombusCV**. You can run the
+[instllation script](bombuscv-raspi.sh) using `curl`:
 ```sh
 curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/marcoradocchia/bombuscv-rs/master/bombuscv-raspi.sh | sh
 ```
@@ -161,7 +162,7 @@ Complete [CHANGELOG](CHANGELOG.md).
 
 ## ToDo
 
-- [ ] Provide build & install instructions in [README](README.md), as well as
+- [x] Provide build & install instructions in [README](README.md), as well as
   the instructions to install OpenCV.
 - [x] Make install script for automated installation on RaspberryPi.
 - [x] Passing `video` or `directory` options in the configuration file using
