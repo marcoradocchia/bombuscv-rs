@@ -18,7 +18,7 @@ name = "bombuscv"
 path = "src/main.rs"
 
 [dependencies]
-clap = { version = "3.1.18", features = ["derive"] }
+clap = { version = "3.2.1", features = ["derive"] }
 directories = { version = "4.0.1" }
 serde = { version = "1.0.137", features = ["derive"] }
 toml = { version = "0.5.9" }
