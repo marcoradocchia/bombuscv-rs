@@ -138,6 +138,7 @@ impl Grabber {
     /// * fps: video framerate
     /// * quiet: mute stdout output
     pub fn new(index: i32, res: &str, fps: f64, quiet: bool) -> Self {
+        // TODO: change the way camera resolution is detected.
         let res = Size::from_str(res);
         // Generate Vector of VideoCapture parameters.
         let params = Vector::from_slice(&[
@@ -150,13 +151,10 @@ impl Grabber {
         ]);
 
         // Construct the VideoCapture object.
-        let cap = match VideoCapture::new_with_params(index, CAP_V4L2, &params) {
-            Ok(cap) => cap,
-            Err(e) => {
-                eprintln!("error: unable to open camera '{e}'");
-                process::exit(1);
-            }
-        };
+        let cap = VideoCapture::new_with_params(index, CAP_V4L2, &params).unwrap_or_else(|e| {
+            eprintln!("error: unable to open camera '{e}'");
+            process::exit(1);
+        });
 
         Self { cap, quiet }
     }
@@ -169,13 +167,10 @@ impl Grabber {
     pub fn from_file(video: &Path, quiet: bool) -> Self {
         let video_path = video.to_str().unwrap();
 
-        let cap = match VideoCapture::from_file(video_path, CAP_FFMPEG) {
-            Ok(cap) => cap,
-            Err(e) => {
-                eprintln!("error: unable to open video file `{video_path}` '{e}'");
-                process::exit(1);
-            }
-        };
+        let cap = VideoCapture::from_file(video_path, CAP_FFMPEG).unwrap_or_else(|e| {
+            eprintln!("error: unable to open video file `{video_path}` '{e}'");
+            process::exit(1);
+        });
 
         Self { cap, quiet }
     }
@@ -380,13 +375,11 @@ impl Writer {
         quiet: bool,
     ) -> Self {
         // Construct the VideoWriter object.
-        let writer = match VideoWriter::new(video_path, codec.fourcc(), fps, res, true) {
-            Ok(writer) => writer,
-            Err(e) => {
+        let writer =
+            VideoWriter::new(video_path, codec.fourcc(), fps, res, true).unwrap_or_else(|e| {
                 eprintln!("error: unable to create video writer '{e}'");
                 process::exit(1);
-            }
-        };
+            });
 
         Self {
             writer,
