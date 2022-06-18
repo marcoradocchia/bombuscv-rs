@@ -85,15 +85,15 @@ fn main() {
 
     // Instance of the frame writer.
     let writer = Writer::new(
-        &config.resolution,
-        config.framerate,
         &filename,
         Codec::XVID,
+        grabber.get_fps(),
+        grabber.get_res(),
         config.overlay,
         config.quiet,
     );
 
-    // Save memory dropping filename.
+    // Save memory dropping `filename`.
     drop(filename);
 
     // Run the program.
@@ -101,7 +101,7 @@ fn main() {
 
     // Gracefully terminated execution.
     if !config.quiet {
-        println!("\nDone.");
+        println!("Done.");
     }
 }
 

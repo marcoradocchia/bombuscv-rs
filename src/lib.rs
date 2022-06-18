@@ -27,8 +27,8 @@ use opencv::{
     },
     prelude::{Mat, MatTraitConst},
     videoio::{
-        VideoCapture, VideoCaptureTrait, VideoWriter, VideoWriterTrait, CAP_FFMPEG, CAP_PROP_FPS,
-        CAP_PROP_FRAME_HEIGHT, CAP_PROP_FRAME_WIDTH, CAP_V4L2,
+        VideoCapture, VideoCaptureTrait, VideoCaptureTraitConst, VideoWriter, VideoWriterTrait,
+        CAP_FFMPEG, CAP_PROP_FPS, CAP_PROP_FRAME_HEIGHT, CAP_PROP_FRAME_WIDTH, CAP_V4L2,
     },
 };
 use std::{error::Error, fmt::Display, os::raw::c_char, path::Path, process};
@@ -95,15 +95,15 @@ impl Codec {
         match *self {
             Codec::MJPG => {
                 VideoWriter::fourcc('M' as c_char, 'J' as c_char, 'P' as c_char, 'G' as c_char)
-                    .unwrap()
+                    .expect("unable to generate MJPG fourcc")
             }
             Codec::XVID => {
                 VideoWriter::fourcc('X' as c_char, 'V' as c_char, 'I' as c_char, 'D' as c_char)
-                    .unwrap()
+                    .expect("unable to generate XVID fourcc")
             }
             Codec::MP4V => {
                 VideoWriter::fourcc('m' as c_char, 'p' as c_char, '4' as c_char, 'v' as c_char)
-                    .unwrap()
+                    .expect("unable to generate MP4V fourcc")
             }
         }
     }
@@ -138,7 +138,6 @@ impl Grabber {
     /// * fps: video framerate
     /// * quiet: mute stdout output
     pub fn new(index: i32, res: &str, fps: f64, quiet: bool) -> Self {
-        // Generate Size object for resolution.
         let res = Size::from_str(res);
         // Generate Vector of VideoCapture parameters.
         let params = Vector::from_slice(&[
@@ -154,7 +153,7 @@ impl Grabber {
         let cap = match VideoCapture::new_with_params(index, CAP_V4L2, &params) {
             Ok(cap) => cap,
             Err(e) => {
-                eprintln!("unable to open camera '{e}'");
+                eprintln!("error: unable to open camera '{e}'");
                 process::exit(1);
             }
         };
@@ -173,12 +172,35 @@ impl Grabber {
         let cap = match VideoCapture::from_file(video_path, CAP_FFMPEG) {
             Ok(cap) => cap,
             Err(e) => {
-                eprintln!("unable to open video file `{video_path}` '{e}'");
+                eprintln!("error: unable to open video file `{video_path}` '{e}'");
                 process::exit(1);
             }
         };
 
         Self { cap, quiet }
+    }
+
+    /// Return `cap` frame Size.
+    pub fn get_res(&self) -> Size {
+        let width = self.cap.get(CAP_PROP_FRAME_WIDTH).unwrap_or_else(|e| {
+            eprintln!("error: unable to retrieve frame width '{e}'");
+            process::exit(1);
+        }) as i32;
+
+        let height = self.cap.get(CAP_PROP_FRAME_HEIGHT).unwrap_or_else(|e| {
+            eprintln!("error: unable to retrieve capture width '{e}'");
+            process::exit(1);
+        }) as i32;
+
+        Size::new(width, height)
+    }
+
+    /// Return `cap` framerate.
+    pub fn get_fps(&self) -> f64 {
+        self.cap.get(CAP_PROP_FPS).unwrap_or_else(|e| {
+            eprintln!("error: unable to retrieve capture fps '{e}'");
+            process::exit(1);
+        })
     }
 
     /// Grab video frame from camera and return it.
@@ -350,20 +372,18 @@ impl Writer {
     /// * overlay: date and time video overlay
     /// * quiet: mute stdout output
     pub fn new(
-        res: &str,
-        fps: f64,
         video_path: &str,
         codec: Codec,
+        fps: f64,
+        res: Size,
         overlay: bool,
         quiet: bool,
     ) -> Self {
-        // Generate Size object for resolution.
-        let res = Size::from_str(res);
         // Construct the VideoWriter object.
         let writer = match VideoWriter::new(video_path, codec.fourcc(), fps, res, true) {
             Ok(writer) => writer,
             Err(e) => {
-                eprintln!("unable to create video writer {e}");
+                eprintln!("error: unable to create video writer '{e}'");
                 process::exit(1);
             }
         };

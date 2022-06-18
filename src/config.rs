@@ -15,9 +15,7 @@
 // this program. If not, see https://www.gnu.org/licenses/.
 
 use crate::args::Args;
-use bombuscv_rs::ResConversion;
 use directories::BaseDirs;
-use opencv::core::Size;
 use serde::{de, Deserialize, Deserializer};
 use std::{
     env,
@@ -31,69 +29,6 @@ use std::{
 const VALID_RESOLUTIONS: [&str; 8] = [
     "480p", "576p", "720p", "768p", "900p", "1080p", "1440p", "2160p",
 ];
-
-/// Retrieve `resolution` & `framerate` information using ffprobe.
-///
-/// # Note
-/// This function is intended to be used to parse Config fileds when using pre-recorded video file
-/// as input.
-fn video_metadata(video_path: &Path) -> (String, f64) {
-    let streams = match ffprobe::ffprobe(video_path) {
-        Ok(metadata) => metadata.streams,
-        Err(e) => {
-            eprintln!("error: unable to retrieve `{video_path:?}` metadata '{e}'");
-            process::exit(1);
-        }
-    };
-
-    // Iterated over probed streams in search of the first video stream.
-    for stream in streams {
-        if let Some(codec_type) = stream.codec_type {
-            if codec_type == "video" {
-                // Retrieve resolution information.
-                let resolution = if stream.width.is_some() && stream.height.is_some() {
-                    let width = stream.width.unwrap();
-                    let height = stream.height.unwrap();
-                    let res_string = format!("{height}p");
-
-                    // If `video` resolution is not one of the valid resolutions exit with error:
-                    // height is being checked in the from_str() function, so let's check if the
-                    // corresponding width matches (the video is actually 16:9 aspect ratio).
-                    if Size::from_str(&res_string).width as i64 != width {
-                        eprintln!("error: `video` is not a supported resolution.");
-                        process::exit(1);
-                    }
-
-                    res_string
-                } else {
-                    eprintln!(
-                        "error: unable to retrieve `resolution` information from '{:?}'",
-                        video_path
-                    );
-                    process::exit(1);
-                };
-
-                // Retrieve framerate information.
-                let framerate = match stream.avg_frame_rate.split_once('/') {
-                    Some(framerate) => framerate,
-                    None => {
-                        eprintln!(
-                            "error: unable to retrieve `framerate` information from '{:?}'",
-                            video_path
-                        );
-                        process::exit(1);
-                    }
-                };
-                let framerate =
-                    framerate.0.parse::<f64>().unwrap() / framerate.1.parse::<f64>().unwrap();
-
-                return (resolution, framerate);
-            }
-        }
-    }
-    eprintln!("error: `video` does not contain any valid video stream.");
-    process::exit(1);
-}
 
 /// Expands `~` in `path` to absolute HOME path.
 pub fn expand_home(path: &Path) -> PathBuf {
@@ -273,16 +208,15 @@ impl Config {
             .unwrap_or_default(); // On Err variant, return empty string (==> default config).
 
             // Parse toml configuration file.
-            match toml::from_str(&config_file) {
-                Err(e) => {
-                    eprintln!("error [config]: {e}");
-                    eprintln!("warning [config]: using defaults");
-                    Config::default()
-                }
-                Ok(config) => config,
-            }
+            toml::from_str(&config_file).unwrap_or_else(|e| {
+                // Configuration parsing failed: print error and use defaults.
+                eprintln!("error [config]: {e}");
+                println!("warning [config]: using defaults");
+                Config::default()
+            })
         } else {
-            eprintln!("warning [config]: no valid config path found on the system, using defaults");
+            eprintln!("error [config]: no valid config path found on the system");
+            println!("warning [config]: using defaults");
             Config::default()
         }
     }
@@ -303,22 +237,17 @@ impl Config {
 
         // Input is video: override resolution & framerate from config or args & disable overlay.
         if let Some(video) = args.video {
-            (self.resolution, self.framerate) = video_metadata(&video);
-
             self.video = Some(video);
-
             if self.overlay {
                 self.overlay = false;
                 eprintln!("warning [config]: ignoring `overlay` while using `video` option.");
             }
-
             if !self.quiet {
                 println!(
                     "info [config]: using `video` original `resolution` and `framerate`, \
                     ignoring eventually specified values."
                 );
             }
-
             return self;
         }
 
@@ -327,32 +256,15 @@ impl Config {
         }
 
         if let Some(framerate) = args.framerate {
-            if self.video.is_some() {
-                eprintln!("warning [args]: ignoring `framerate` while using `video` option (auto-detected parameter).")
-            } else {
-                self.framerate = framerate;
-            }
+            self.framerate = framerate;
         }
 
         if let Some(resolution) = args.resolution {
-            if self.video.is_some() {
-                eprintln!("warning [args]: ignoring `resolution` while using `video` option (auto-detected parameter).")
-            } else {
-                self.resolution = resolution;
-            }
+            self.resolution = resolution;
         }
 
         if args.overlay {
-            // Overlay CLI flag is provided, but video is provided in configuration option: ignoring
-            // overlay (date&time video overlay) option since it makes no sense with non live
-            // captured frames.
-            if self.video.is_some() {
-                eprintln!("warning [args]: ignoring `overlay` option while using `video` option in configuration file.");
-            } else {
-                // Overlay CLI flag is provided and live input is being used, so go ahead and
-                // override configuration file with CLI flag provided.
-                self.overlay = true;
-            }
+            self.overlay = true;
         }
 
         self
