@@ -26,10 +26,6 @@ use std::{
     string::String,
 };
 
-const VALID_RESOLUTIONS: [&str; 8] = [
-    "480p", "576p", "720p", "768p", "900p", "1080p", "1440p", "2160p",
-];
-
 /// Expands `~` in `path` to absolute HOME path.
 pub fn expand_home(path: &Path) -> PathBuf {
     match path.strip_prefix("~") {
@@ -65,51 +61,24 @@ where
     }
 }
 
-/// Custom deserializer for `framerate` field: checks if field value is >1.0.
-fn deserialize_framerate<'de, D>(d: D) -> Result<f64, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let framerate = f64::deserialize(d)?;
-    if framerate > 1. {
-        Ok(framerate)
-    } else {
-        Err(de::Error::invalid_value(
-            de::Unexpected::Float(framerate),
-            &"a value > 1.0",
-        ))
-    }
-}
-
-/// Custom deserializer for `resolution` field: checks for `resolution` in possible values.
-fn deserialize_resolution<'de, D>(d: D) -> Result<String, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let resolution = String::deserialize(d)?;
-
-    match VALID_RESOLUTIONS.contains(&resolution.as_str()) {
-        true => Ok(resolution),
-        false => Err(de::Error::invalid_value(
-            de::Unexpected::Str(&resolution),
-            &format!("{:?}", VALID_RESOLUTIONS).as_str(),
-        )),
-    }
-}
-
 /// Default value for /dev/video<index> capture camera index.
 fn default_index() -> u8 {
     0
 }
 
-/// Default value for video framerate.
-fn default_framerate() -> f64 {
-    60.
+/// Default value for video capture frame height.
+fn default_height() -> u16 {
+    480
 }
 
-/// Dafault value for video resolution.
-fn default_resolution() -> String {
-    String::from("480p")
+/// Default value for video capture frame width.
+fn default_width() -> u16 {
+    640
+}
+
+/// Default value for video capture framerate.
+fn default_framerate() -> u8 {
+    60
 }
 
 /// Default output video directory.
@@ -139,19 +108,17 @@ pub struct Config {
     #[serde(skip_deserializing)]
     pub video: Option<PathBuf>,
 
-    /// Video framerate.
-    #[serde(
-        default = "default_framerate",
-        deserialize_with = "deserialize_framerate"
-    )]
-    pub framerate: f64,
+    /// Video capture frame height.
+    #[serde(default = "default_height")]
+    pub height: u16,
 
-    /// Video resolution (standard 16:9 formats).
-    #[serde(
-        default = "default_resolution",
-        deserialize_with = "deserialize_resolution"
-    )]
-    pub resolution: String,
+    /// Video capture frame width.
+    #[serde(default = "default_width")]
+    pub width: u16,
+
+    /// Video capture framerate.
+    #[serde(default = "default_framerate")]
+    pub framerate: u8,
 
     /// Output video directory.
     #[serde(
@@ -181,8 +148,9 @@ impl Default for Config {
         Self {
             index: default_index(),
             video: None,
+            height: default_height(),
+            width: default_width(),
             framerate: default_framerate(),
-            resolution: default_resolution(),
             directory: default_directory(),
             format: default_format(),
             overlay: false,
@@ -235,7 +203,8 @@ impl Config {
             self.quiet = true;
         }
 
-        // Input is video: override resolution & framerate from config or args & disable overlay.
+        // Input is video: disable overlay and warn the user that video feed resolution and
+        // framerate are used in place of those specified in the config file.
         if let Some(video) = args.video {
             self.video = Some(video);
             if self.overlay {
@@ -255,12 +224,16 @@ impl Config {
             self.index = index;
         }
 
-        if let Some(framerate) = args.framerate {
-            self.framerate = framerate;
+        if let Some(height) = args.height {
+            self.height = height;
         }
 
-        if let Some(resolution) = args.resolution {
-            self.resolution = resolution;
+        if let Some(width) = args.width {
+            self.width = width;
+        }
+
+        if let Some(framerate) = args.framerate {
+            self.framerate = framerate;
         }
 
         if args.overlay {

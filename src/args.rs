@@ -19,19 +19,6 @@ use clap::ArgAction::{Set, SetTrue};
 pub use clap::Parser;
 use std::path::PathBuf;
 
-/// Parse framerate CLI argument.
-pub fn parse_framerate(framerate: &str) -> Result<f64, String> {
-    let err_msg = || String::from("the framerate must be a positive floating point number");
-    if let Ok(framerate) = framerate.parse::<f64>() {
-        if framerate <= 1. {
-            return Err(err_msg());
-        }
-        Ok(framerate)
-    } else {
-        Err(err_msg())
-    }
-}
-
 /// Parse output video directory.
 pub fn parse_directory(directory: &str) -> Result<PathBuf, String> {
     let directory = expand_home(&PathBuf::from(directory));
@@ -68,21 +55,21 @@ pub struct Args {
         short,
         long,
         value_parser = parse_video,
-        conflicts_with_all = &["index", "overlay", "framerate", "resolution"]
+        conflicts_with_all = &["index", "overlay", "height", "width", "framerate"]
     )]
     pub video: Option<PathBuf>,
 
-    /// Video framerate.
-    #[clap(short, long, value_parser = parse_framerate)]
-    pub framerate: Option<f64>,
+    /// Video capture frame height.
+    #[clap(short = 'H', long, action = Set)]
+    pub height: Option<u16>,
 
-    /// Video resolution (standard 16:9 formats).
-    #[clap(
-        short,
-        long,
-        value_parser = ["480p", "576p", "720p", "768p", "900p", "1080p", "1440p", "2160p"]
-    )]
-    pub resolution: Option<String>,
+    /// Video capture frame width.
+    #[clap(short = 'W', long, action = Set)]
+    pub width: Option<u16>, 
+
+    /// Video capture framerate.
+    #[clap(short, long, action = Set)]
+    pub framerate: Option<u8>,
 
     /// Output video directory.
     #[clap(short, long, value_parser = parse_directory)]

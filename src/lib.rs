@@ -87,6 +87,7 @@ pub enum Codec {
     MJPG,
     XVID,
     MP4V,
+    H264,
 }
 
 impl Codec {
@@ -104,6 +105,10 @@ impl Codec {
             Codec::MP4V => {
                 VideoWriter::fourcc('m' as c_char, 'p' as c_char, '4' as c_char, 'v' as c_char)
                     .expect("unable to generate MP4V fourcc")
+            }
+            Codec::H264 => {
+                VideoWriter::fourcc('h' as c_char, '2' as c_char, '6' as c_char, '4' as c_char)
+                    .expect("unable to generate H264 fourcc")
             }
         }
     }
@@ -134,20 +139,24 @@ impl Grabber {
     ///
     /// # Parameters
     /// * index: _/dev/video<index>_ capture camera index
-    /// * res: video resolution
-    /// * fps: video framerate
+    /// * height: video capture desired frame height
+    /// * width: video capture desired frame width
+    /// * fps: video capture desired framerate
     /// * quiet: mute stdout output
-    pub fn new(index: i32, res: &str, fps: f64, quiet: bool) -> Self {
-        // TODO: change the way camera resolution is detected.
-        let res = Size::from_str(res);
+    ///
+    /// # Note
+    ///
+    /// Wherever the requested video capture parameters (height, width, fps) are not available for
+    /// the given video capture device, OpenCV selects the closest available values.
+    pub fn new(index: i32, height: i32, width: i32, fps: i32, quiet: bool) -> Self {
         // Generate Vector of VideoCapture parameters.
         let params = Vector::from_slice(&[
             CAP_PROP_FRAME_WIDTH,
-            res.width,
+            width,
             CAP_PROP_FRAME_HEIGHT,
-            res.height,
+            height,
             CAP_PROP_FPS,
-            fps as i32,
+            fps
         ]);
 
         // Construct the VideoCapture object.
@@ -175,22 +184,27 @@ impl Grabber {
         Self { cap, quiet }
     }
 
-    /// Return `cap` frame Size.
-    pub fn get_res(&self) -> Size {
-        let width = self.cap.get(CAP_PROP_FRAME_WIDTH).unwrap_or_else(|e| {
+
+    pub fn get_height(&self) -> i32 {
+        self.cap.get(CAP_PROP_FRAME_HEIGHT).unwrap_or_else(|e| {
             eprintln!("error: unable to retrieve frame width '{e}'");
             process::exit(1);
-        }) as i32;
-
-        let height = self.cap.get(CAP_PROP_FRAME_HEIGHT).unwrap_or_else(|e| {
-            eprintln!("error: unable to retrieve capture width '{e}'");
-            process::exit(1);
-        }) as i32;
-
-        Size::new(width, height)
+        }) as i32
     }
 
-    /// Return `cap` framerate.
+    pub fn get_width(&self) -> i32 {
+        self.cap.get(CAP_PROP_FRAME_WIDTH).unwrap_or_else(|e| {
+            eprintln!("error: unable to retrieve capture width '{e}'");
+            process::exit(1);
+        }) as i32
+    }
+
+    /// Return video capture frame Size.
+    pub fn get_size(&self) -> Size {
+        Size::new(self.get_width(), self.get_height())
+    }
+
+    /// Return video capture framerate.
     pub fn get_fps(&self) -> f64 {
         self.cap.get(CAP_PROP_FPS).unwrap_or_else(|e| {
             eprintln!("error: unable to retrieve capture fps '{e}'");
@@ -240,10 +254,10 @@ impl MotionDetector {
     /// Create an instance of the MotionDetector.
     pub fn new() -> Self {
         Self {
-            // Initialize prev_frame as 480p resolution empty frame: next grabbed frames will be
+            // Initialize prev_frame as 640x480 empty frame: next grabbed frames will be
             // downscaled to this resolution and this initialization must be a valid Size for the
             // first frame comparison.
-            prev_frame: unsafe { Mat::new_size(Size::from_str("480p"), CV_8UC3).unwrap() },
+            prev_frame: unsafe { Mat::new_size(Size::new(640, 480), CV_8UC3).unwrap() },
         }
     }
 
@@ -264,11 +278,12 @@ impl MotionDetector {
             return Err(FrameError::EmptyFrame);
         }
 
-        // Downscale input frame (to 480p resolution) to reduce noise & computational weight.
+        // Downscale input frame (to 640x480) to reduce noise & computational weight.
         resize(
             &frame.frame,
             &mut resized_frame,
-            Size::from_str("480p"),
+            // WARNING: check if chaning the aspect ratio causes any problem.
+            Size::new(640, 480),
             0.,
             0.,
             INTER_LINEAR,
@@ -361,7 +376,7 @@ impl Writer {
     /// Create an instance of the writer.
     ///
     /// # Parameters
-    /// * res: video resolution
+    /// * size: video frame
     /// * fps: video framerate
     /// * video_path: output video file path
     /// * overlay: date and time video overlay
@@ -370,13 +385,13 @@ impl Writer {
         video_path: &str,
         codec: Codec,
         fps: f64,
-        res: Size,
+        size: Size,
         overlay: bool,
         quiet: bool,
     ) -> Self {
         // Construct the VideoWriter object.
         let writer =
-            VideoWriter::new(video_path, codec.fourcc(), fps, res, true).unwrap_or_else(|e| {
+            VideoWriter::new(video_path, codec.fourcc(), fps, size, true).unwrap_or_else(|e| {
                 eprintln!("error: unable to create video writer '{e}'");
                 process::exit(1);
             });

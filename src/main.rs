@@ -55,18 +55,6 @@ fn main() {
         )
         .to_string();
 
-    // Print config options if config.quiet is false.
-    if !config.quiet {
-        if let Some(video) = &config.video {
-            println!("==> Input video file: {}", video.display());
-        };
-        println!(
-            "==> Resolution: {}\n==> Framerate: {}\n==> Output video file: {}\n\
-                ==> Printing overlay: {}",
-            &config.resolution, &config.framerate, filename, &config.overlay
-        );
-    }
-
     // Instance of the frame grabber.
     let grabber = match &config.video {
         // VideoCapture is video file.
@@ -74,11 +62,23 @@ fn main() {
         // VideoCapture is live camera.
         None => Grabber::new(
             config.index.into(),
-            &config.resolution,
-            config.framerate,
+            config.height.into(),
+            config.width.into(),
+            config.framerate.into(),
             config.quiet,
         ),
     };
+    
+    // Print grabber video capture parameters.
+    if !config.quiet {
+        if let Some(video) = &config.video {
+            println!("==> Input video file: {}", video.display());
+        };
+        println!("==> Frame size: {}x{}", grabber.get_width(), grabber.get_height());
+        println!("==> Framerate: {}", grabber.get_fps());
+        println!("==> Printing overlay: {}", &config.overlay);
+        println!("==> Output video file: {}", &filename);
+    }
 
     // Instance of the motion detector.
     let detector = MotionDetector::new();
@@ -88,7 +88,7 @@ fn main() {
         &filename,
         Codec::XVID,
         grabber.get_fps(),
-        grabber.get_res(),
+        grabber.get_size(),
         config.overlay,
         config.quiet,
     );
@@ -108,7 +108,7 @@ fn main() {
 /// Run `bombuscv`: spawn & join frame grabber, detector and writer threads.
 fn run(mut grabber: Grabber, mut detector: MotionDetector, mut writer: Writer) {
     // Create channels for message passing between threads.
-    // NOTE: using mpsc::sync_channel (blocking) for to avoid channel size
+    // NOTE: using mpsc::sync_channel (blocking) to avoid channel size
     // growing indefinitely, resulting in infinite memory usage.
     let (raw_tx, raw_rx) = mpsc::sync_channel(100);
     let (proc_tx, proc_rx) = mpsc::sync_channel(100);
