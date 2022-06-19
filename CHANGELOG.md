@@ -1,5 +1,24 @@
 # Changelog
 
+## [Unreleased] <!-- 0.3.0 -->
+
+Updated
+[README](https://github.com/marcoradocchia/bombuscv-rs/blob/master/README.md)
+*Use case*, *Install*, *Usage* and *Configuration* sections.
+
+### Changed
+
+- Moved `resolution` option to `width` & `height` options in both configuration
+  file and CLI arguments: now custom resolution (and aspect ratio) and
+  framerate can be specified and `bobmuscv` will adapt those to the closest
+  combination of resolution and framerate the capture device provides.
+
+### Removed
+
+- Dependency `ffprobe`: pre-recorded video *resolution* and *framerate*,
+  required to construct the `VideoWriter`, are now obtained using **OpenCV**'s
+  `VideoCapture` getters methods;
+
 ## [0.2.0] - 2022-06-14
 
 Updated

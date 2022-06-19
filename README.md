@@ -50,7 +50,8 @@ manual video trimming.
 [^1]: 4GB of RAM memory, powered by a 30000mAh battery power supply, which
   means this setup can be also reproduced in locations where no AC is available
 [^2]: 12.3 megapixel _Sony IMX477_ sensor
-[^3]: Based on hardware
+[^3]: Based on hardware (RasberryPi 4 at the moment of writing can handle
+  640x480 resolution at 60fps)
 
 ## Examples
 
@@ -80,27 +81,29 @@ tested with success on *ArchLinux* with the `extra/opencv` package).
 ### Using Cargo
 
 A package is available at [crates.io](https://crates.io/crates/bombuscv-rs). In
-order to install it run `cargo install bombuscv-rs` in your shell.
+order to install it run `cargo install bombuscv-rs` in your shell[^4].
+
+[^4]: Assuming Rust installed
 
 ### Install on RaspberryPi 4
 
-It is strongly recommended to use a RaspberryPi with at least 4GB of RAM. Also,
-before trying to install, please enable *Legacy Camera* support under
-*Interface options*  running `raspi-config` and reboot. Since installation on
-a RaspberryPi may be a little bit *tricky*, an installation script is
-provided[^4]. It takes care of updating & preparing the system, compiling
+It is strongly recommended to use a RaspberryPi 4 with at least 4GB of RAM.
+Also, before trying to install, please enable *Legacy Camera* support under
+*Interface options*  running `raspi-config` and reboot. Since installation on a
+RaspberryPi may be a little bit *tricky*, an installation script is
+provided[^5]. It takes care of updating & preparing the system, compiling
 *OpenCV* and installing *Rustup* and finally **BombusCV**. You can run the
 [instllation script](bombuscv-raspi.sh) using `curl`:
 ```sh
 curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/marcoradocchia/bombuscv-rs/master/bombuscv-raspi.sh | sh
 ```
 
-[^4]: RaspberryPi OS 64 bits required in order to install using the script
+[^5]: RaspberryPi OS 64 bits required in order to install using the script
 
 ## Usage
 
 ```
-bombuscv-rs 0.2.0
+bombuscv-rs 0.3.0
 Marco Radocchia <marco.radocchia@outlook.com>
 OpenCV based motion detection/recording software built for research on bumblebees.
 
@@ -108,45 +111,43 @@ USAGE:
     bombuscv [OPTIONS]
 
 OPTIONS:
-    -d, --directory <DIRECTORY>      Output video directory
-    -f, --framerate <FRAMERATE>      Video framerate
-        --format <FORMAT>            Output video filename format (see
-                                     https://docs.rs/chrono/latest/chrono/format/strftime/index.html
-                                     for valid specifiers)
-    -h, --help                       Print help information
-    -i, --index <INDEX>              /dev/video<INDEX> capture camera index
-    -o, --overlay                    Enable Date&Time video overlay
-    -q, --quiet                      Mute standard output
-    -r, --resolution <RESOLUTION>    Video resolution (standard 16:9 formats) [possible values:
-                                     480p, 576p, 720p, 768p, 900p, 1080p, 1440p, 2160p]
-    -v, --video <VIDEO>              Video file as input
-    -V, --version                    Print version information
+    -d, --directory <DIRECTORY>    Output video directory
+    -f, --framerate <FRAMERATE>    Video capture framerate
+        --format <FORMAT>          Output video filename format (see
+                                   <https://docs.rs/chrono/latest/chrono/format/strftime/index.html>
+                                   for valid specifiers)
+    -h, --help                     Print help information
+    -H, --height <HEIGHT>          Video capture frame height
+    -i, --index <INDEX>            /dev/video<INDEX> capture camera index
+    -o, --overlay                  Enable Date&Time video overlay
+    -q, --quiet                    Mute standard output
+    -v, --video <VIDEO>            Video file as input
+    -V, --version                  Print version information
+    -W, --width <WIDTH>            Video capture frame width
 ```
 
+Specifying `width`, `height` & `framerate` will make `bombuscv` probe the
+capture device for the closest combination of values it can provide and select
+them. In other words: if you required valid options, they will be used,
+otherwhise `bombuscv` will adapt those to the closest available combination[^6].
+
 Note that `video` option, which runs `bombuscv` with a pre-recorded video
-input, is incompatible with `framerate`, `resolution` and `overlay`. Also, if
-these options are specified in the configuration file, they are going to be
-ignored. This because the first two are auto-detected from the input file using
-`ffprobe` (`ffmpeg` tool), while the last makes no sense if used with a
-non-live video feed; same rules apply to CLI arguments.
+input, is incompatible with `framerate`, `width`, `height` and `overlay`. Also,
+if these options are specified in the configuration file, they are going to be
+ignored. This because the first two are auto-detected from the input file while
+the last makes no sense if used with a non-live video feed; same rules apply to
+CLI arguments.
+
+[^6]: Same rules apply to configuration file
 
 ## Configuration
 
-All options (except `video`) can be set in a _optional_ configuration file
-stored at `$XDG_CONFIG_HOME/bombuscv/config.toml` by default or at any location
-in the filesystem specified by setting `BOMBUSCV_CONFIG` environment variable.
-CLI arguments/flags override options defined in the configuration file. Below
-listed an example configuration file:
+All CLI options (except `video`) can be set in a *optional* configuration file
+stored at `$XDG_CONFIG_HOME/bombuscv/config.toml` by default or at any other
+location in the filesystem specified by setting `BOMBUSCV_CONFIG` environment
+variable. CLI options/arguments/flags override those defined in the
+configuration file. Below listed an example configuration file:
 ```toml
-# /dev/video<index> camera input
-index = 0
-# input/output framerate (ignored if used with `video`)
-framerate = 60.0
-# input/output resolution (ignored if used with `video`)
-# possible values (16:9 formats): 480p, 576p, 720p, 768p, 900p, 1080p, 1440p, 2160p
-resolution = "720p"
-# date&time video overlay (ignored if used with `video`)
-overlay = true
 # be quiet (mute stdout)
 quiet = false
 # output video directory
@@ -154,6 +155,18 @@ directory = "~/output_directory/"
 # output video filename format (see
 # https://docs.rs/chrono/latest/chrono/format/strftime/index.html for valid specifiers)
 format = "%Y-%m-%dT%H:%M:%S"
+
+# The following options are ignored if bombuscv is run with `--video` option
+# /dev/video<index> camera input
+index = 0
+# video capture frame width
+width = 640
+# video capture frame height
+height = 480
+# video capture framerate
+framerate = 30
+# date&time video overlay
+overlay = true
 ```
 
 ## Changelog
@@ -180,7 +193,7 @@ Complete [CHANGELOG](CHANGELOG.md).
 
 ## Chat Support
 
-Join Discord server for installation or usage chat support:
+Join *BombusCV's Discord server* for installation or usage chat support:
 
 <div align="center">
 
