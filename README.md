@@ -119,7 +119,8 @@ OPTIONS:
     -h, --help                     Print help information
     -H, --height <HEIGHT>          Video capture frame height
     -i, --index <INDEX>            /dev/video<INDEX> capture camera index
-    -o, --overlay                  Enable Date&Time video overlay
+        --no-color                 Disable colored output
+    -o, --overlay                  Date&Time video overlay
     -q, --quiet                    Mute standard output
     -v, --video <VIDEO>            Video file as input
     -V, --version                  Print version information
@@ -142,7 +143,7 @@ CLI arguments.
 
 ## Configuration
 
-All CLI options (except `video`) can be set in a *optional* configuration file
+All CLI options (except `video` and `no-color`) can be set in a *optional* configuration file
 stored at `$XDG_CONFIG_HOME/bombuscv/config.toml` by default or at any other
 location in the filesystem specified by setting `BOMBUSCV_CONFIG` environment
 variable. CLI options/arguments/flags override those defined in the
