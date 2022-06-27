@@ -14,12 +14,14 @@ fn sync_frame_processing_avg_time() {
     // Parse CLI arguments.
     let config = Config {
         index: 0,
-        framerate: 60.,
-        resolution: String::from("1080p"),
+        height: 1080,
+        width: 1920,
+        framerate: 60,
         video: Some(home.join("test.mkv")),
         directory: home,
         format: String::from("output"),
         overlay: false,
+        no_color: true,
         quiet: false,
     };
 
@@ -37,47 +39,43 @@ fn sync_frame_processing_avg_time() {
         )
         .to_string();
 
-    // Print config options if config.quiet is false.
-    if !config.quiet {
-        println!("{:#?}", &config);
-    }
+    // Vector of frames to test performance on.
+    let mut frames: Vec<Frame> = Vec::with_capacity(N);
+    let mut detected_frames = 0;
+
+    // Instance of the frame grabber.
+    let mut grabber = match &config.video {
+        // VideoCapture is video file.
+        Some(video) => Grabber::from_file(video),
+        // VideoCapture is live camera.
+        None => Grabber::new(
+            config.index.into(),
+            config.height.into(),
+            config.width.into(),
+            config.framerate.into(),
+        ),
+    }.unwrap();
+
     // Instance of the motion detector.
     let mut detector = MotionDetector::new();
 
     // Instance of the frame writer.
     let mut writer = Writer::new(
-        &config.resolution,
-        config.framerate,
         &filename,
         Codec::XVID,
+        grabber.get_fps(),
+        grabber.get_size(),
         config.overlay,
-        config.quiet,
-    );
+    ).unwrap();
 
-    // Vector of frames to test performance on.
-    let mut frames: Vec<Frame> = Vec::with_capacity(N);
-    let mut detected_frames = 0;
+    // Print config options if config.quiet is false.
+    if !config.quiet {
+        println!("{:#?}", &config);
+    }
 
-    // Create grabber and grab in a new scope in order to release the grabber as soon as the
-    // grabbing is done.
-    {
-        // Instance of the frame grabber.
-        let mut grabber = match &config.video {
-            // VideoCapture is video file.
-            Some(video) => Grabber::from_file(video, config.quiet),
-            // VideoCapture is live camera.
-            None => Grabber::new(
-                config.index.into(),
-                &config.resolution,
-                config.framerate,
-                config.quiet,
-            ),
-        };
-
-        // Acquire N frames.
-        for _ in 0..N {
-            frames.push(grabber.grab());
-        }
+    // Acquire N frames.
+    for _ in 0..N {
+        frames.push(grabber.grab().unwrap());
     }
 
     // Save the start time.
@@ -87,7 +85,7 @@ fn sync_frame_processing_avg_time() {
             Ok(frame) => {
                 if let Some(frame) = frame {
                     // If frame is detected, write it to the file.
-                    writer.write(frame);
+                    writer.write(frame).unwrap();
                     // Count the detected frames.
                     detected_frames += 1;
                 }
