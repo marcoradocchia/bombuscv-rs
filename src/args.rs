@@ -80,9 +80,13 @@ pub struct Args {
     #[clap(long, action = Set)]
     pub format: Option<String>,
 
-    /// Enable Date&Time video overlay.
+    /// Date&Time video overlay.
     #[clap(short, long, action = SetTrue)]
     pub overlay: bool,
+
+    /// Disable colored output.
+    #[clap(long, action = SetTrue)]
+    pub no_color: bool,
 
     /// Mute standard output.
     #[clap(short, long, action = SetTrue)]

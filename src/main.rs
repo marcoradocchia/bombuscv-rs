@@ -17,14 +17,15 @@
 #[cfg(test)]
 mod test;
 
-mod args;
-mod config;
-
-use args::{Args, Parser};
-use bombuscv_rs::{Codec, Grabber, MotionDetector, Writer};
+use bombuscv_rs::{
+    args::{Args, Parser},
+    color::{Colorizer, MsgType},
+    config::Config,
+    Codec, Grabber, MotionDetector, Writer,
+};
 use chrono::Local;
-use config::Config;
 use signal_hook::{consts::SIGINT, flag::register};
+use std::io;
 use std::{
     path::Path,
     process,
@@ -35,21 +36,34 @@ use std::{
     thread,
 };
 
-fn main() {
+fn main() -> io::Result<()> {
     // Parse CLI arguments.
     let args = Args::parse();
-    // Parse config and override options with CLI arguments, where provided.
-    let config = Config::parse().override_with_args(args);
+    // Parse config file and override options with CLI arguments.
+    let config = match Config::parse() {
+        Ok(config) => config,
+        Err(e) => {
+            Colorizer::new(MsgType::Error, args.no_color, "error [config]", e).print()?;
+            Colorizer::new(
+                MsgType::Warn,
+                args.no_color,
+                "warning",
+                "using default configuration",
+            )
+            .print()?;
+            Config::default()
+        }
+    }
+    .override_with_args(args);
 
     // Format video file path as <config.directory/date&time>.
     let filename = Local::now()
         .format(
             config
-                // Output video file directory.
                 .directory
                 // Output video file name (derived by file format) + extension.
                 .join(Path::new(&config.format).with_extension("mkv"))
-                // Convert Path object to string;
+                // Convert Path object to string.
                 .to_str()
                 .unwrap(),
         )
@@ -58,55 +72,86 @@ fn main() {
     // Instance of the frame grabber.
     let grabber = match &config.video {
         // VideoCapture is video file.
-        Some(video) => Grabber::from_file(video, config.quiet),
+        Some(video) => Grabber::from_file(video),
         // VideoCapture is live camera.
         None => Grabber::new(
             config.index.into(),
             config.height.into(),
             config.width.into(),
             config.framerate.into(),
-            config.quiet,
         ),
     };
-    
-    // Print grabber video capture parameters.
+    let grabber = match grabber {
+        Ok(grabber) => grabber,
+        Err(e) => {
+            Colorizer::new(MsgType::Error, config.no_color, "error", e).print()?;
+            process::exit(1);
+        }
+    };
+
+    // Print info.
     if !config.quiet {
-        if let Some(video) = &config.video {
-            println!("==> Input video file: {}", video.display());
+        let mut colorizer = Colorizer::empty(MsgType::Info, config.no_color);
+
+        let input = if let Some(video) = &config.video {
+            video.display().to_string()
+        } else {
+            format!("/dev/video{}", &config.index)
         };
-        println!("==> Frame size: {}x{}", grabber.get_width(), grabber.get_height());
-        println!("==> Framerate: {}", grabber.get_fps());
-        println!("==> Printing overlay: {}", &config.overlay);
-        println!("==> Output video file: {}", &filename);
+
+        let messages = vec![
+            ("==> Input", input),
+            ("==> Framerate", grabber.get_fps().to_string()),
+            ("==> Printing overlay", format!("{}", config.overlay)),
+            ("==> Output video file", filename.clone()),
+            ("==> Frame size", format!("{}x{}", grabber.get_width(), grabber.get_height())),
+        ];
+
+        for msg in messages {
+            colorizer.update(msg.0, msg.1);
+            colorizer.print()?;
+        }
     }
 
     // Instance of the motion detector.
     let detector = MotionDetector::new();
 
     // Instance of the frame writer.
-    let writer = Writer::new(
+    let writer = match Writer::new(
         &filename,
         Codec::XVID,
         grabber.get_fps(),
         grabber.get_size(),
         config.overlay,
-        config.quiet,
-    );
+    ) {
+        Ok(writer) => writer,
+        Err(e) => {
+            Colorizer::new(MsgType::Error, config.no_color, "error", e).print()?;
+            process::exit(1);
+        }
+    };
 
     // Save memory dropping `filename`.
     drop(filename);
 
     // Run the program.
-    run(grabber, detector, writer);
+    run(grabber, detector, writer, config.no_color)?;
 
     // Gracefully terminated execution.
     if !config.quiet {
-        println!("Done.");
+        Colorizer::new(MsgType::Info, config.no_color, "\nbombuscv", "done!").print()?;
     }
+
+    Ok(())
 }
 
 /// Run `bombuscv`: spawn & join frame grabber, detector and writer threads.
-fn run(mut grabber: Grabber, mut detector: MotionDetector, mut writer: Writer) {
+fn run(
+    mut grabber: Grabber,
+    mut detector: MotionDetector,
+    mut writer: Writer,
+    no_color: bool,
+) -> io::Result<()> {
     // Create channels for message passing between threads.
     // NOTE: using mpsc::sync_channel (blocking) to avoid channel size
     // growing indefinitely, resulting in infinite memory usage.
@@ -115,28 +160,44 @@ fn run(mut grabber: Grabber, mut detector: MotionDetector, mut writer: Writer) {
 
     // Spawn frame grabber thread:
     // this thread captures frames and passes them to the motion detecting thread.
-    let grabber_handle = thread::spawn(move || {
+    let grabber_handle = thread::spawn(move || -> io::Result<()> {
         let term = Arc::new(AtomicBool::new(false));
-        // Register signal hook for SIGINT events: catch eventual error, report it to the user &
-        // exit process with code error code.
+        // Register signal hook for SIGINT events: in this case error is unrecoverable, so report
+        // it to the user & exit process with code error code.
         if let Err(e) = register(SIGINT, Arc::clone(&term)) {
-            eprintln!("unable to register SIGINT hook '{e}'");
+            Colorizer::new(
+                MsgType::Error,
+                no_color,
+                "fatal error",
+                format!("unable to register SIGINT hook '{e}'"),
+            )
+            .print()?;
             process::exit(1);
         };
 
-        // Start grabber loop: loop guard is `received SIGINT`.
+        // Start grabber loop: loop guard is 'received SIGINT'.
         while !term.load(Ordering::Relaxed) {
+            let frame = match grabber.grab() {
+                Ok(frame) => frame,
+                Err(e) => {
+                    Colorizer::new(MsgType::Warn, no_color, "warning", e).print()?;
+                    continue;
+                }
+            };
+
             // Grab frame and send it to the motion detection thread.
-            if raw_tx.send(grabber.grab()).is_err() {
+            if raw_tx.send(frame).is_err() {
                 break;
             }
         }
+
+        Ok(())
     });
 
     // Spawn motion detection thread:
     // this thread receives frames from the grabber thread, processes it and if motion is detected,
     // passes the frame to the frame writing thread.
-    let detector_handle = thread::spawn(move || {
+    let detector_handle = thread::spawn(move || -> io::Result<()> {
         // Loop over received frames from the frame grabber.
         for frame in raw_rx {
             match detector.detect_motion(frame) {
@@ -145,7 +206,13 @@ fn run(mut grabber: Grabber, mut detector: MotionDetector, mut writer: Writer) {
                     // Motion has been detected: send frame to the video writer.
                     if let Some(frame) = val {
                         if proc_tx.send(frame).is_err() {
-                            eprintln!("warning: frame dropped");
+                            Colorizer::new(
+                                MsgType::Warn,
+                                no_color,
+                                "warning",
+                                "unable to send processed frame to video output",
+                            )
+                            .print()?;
                         };
                     }
                 }
@@ -154,21 +221,31 @@ fn run(mut grabber: Grabber, mut detector: MotionDetector, mut writer: Writer) {
                 Err(_) => break,
             }
         }
+
+        Ok(())
     });
 
     // Spawn frame writer thread:
     // this thread receives the processed frames by the motion detecting thread and writes them in
-    // the output video file.
-    let writer_handle = thread::spawn(move || {
+    // the output video output.
+    let writer_handle = thread::spawn(move || -> io::Result<()> {
         // Loop over received frames from the motion detector.
         for frame in proc_rx {
-            // Write processed frames (motion detected) to the video file.
-            writer.write(frame);
+            // Write processed frames (motion detected) to the video output.
+            if let Err(e) = writer.write(frame) {
+                Colorizer::new(MsgType::Warn, no_color, "warning", e).print()?;
+            };
         }
+
+        Ok(())
     });
 
     // Join all threads.
-    grabber_handle.join().unwrap();
-    detector_handle.join().unwrap();
-    writer_handle.join().unwrap();
+    grabber_handle.join().expect("cannot join grabber thread")?;
+    detector_handle
+        .join()
+        .expect("cannot join detector thread")?;
+    writer_handle.join().expect("cannot join writer thread")?;
+
+    Ok(())
 }

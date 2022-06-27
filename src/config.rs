@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License along with
 // this program. If not, see https://www.gnu.org/licenses/.
 
-use crate::args::Args;
+use crate::{args::Args, error::ErrorKind};
 use directories::BaseDirs;
 use serde::{de, Deserialize, Deserializer};
 use std::{
@@ -22,28 +22,22 @@ use std::{
     fmt::Debug,
     fs,
     path::{Path, PathBuf},
-    process,
     string::String,
 };
 
 /// Expands `~` in `path` to absolute HOME path.
 pub fn expand_home(path: &Path) -> PathBuf {
-    match path.strip_prefix("~") {
-        // `~` found: replace it with the absolute HOME path.
-        Ok(path) => {
-            // Generate the absolute path for HOME.
-            let home = match BaseDirs::new() {
-                Some(base_dirs) => base_dirs.home_dir().to_path_buf(),
-                None => {
-                    eprintln!("error: unable to find home directory");
-                    process::exit(1);
-                }
-            };
-            // Insert the absolute HOME path at the beginning of the path.
-            home.join(path)
-        }
-        // `~` not found: return the given path as is
-        Err(_) => path.to_path_buf(),
+    if let Ok(path) = path.strip_prefix("~") {
+        // Generate the absolute path for HOME.
+        let home = match BaseDirs::new() {
+            Some(base_dirs) => base_dirs.home_dir().to_path_buf(),
+            // No $HOME directories could be determined, so panicking is fine here.
+            None => panic!("unable to find home directory"),
+        };
+        // Insert the absolute HOME path at the beginning of the path.
+        home.join(path)
+    } else {
+        path.to_path_buf()
     }
 }
 
@@ -53,11 +47,12 @@ where
     D: Deserializer<'de>,
 {
     let path = expand_home(&PathBuf::deserialize(d)?);
-    match path.is_dir() {
-        true => Ok(path),
-        false => Err(de::Error::custom(
+    if path.is_dir() {
+        Ok(path)
+    } else {
+        Err(de::Error::custom(
             "specified `directory` option is not a valid path",
-        )),
+        ))
     }
 }
 
@@ -85,14 +80,12 @@ fn default_framerate() -> u8 {
 fn default_directory() -> PathBuf {
     match BaseDirs::new() {
         Some(base_dirs) => base_dirs.home_dir().to_path_buf(),
-        None => {
-            eprintln!("error: unable to find home directory");
-            process::exit(1);
-        }
+        // No base directories could be determined, so panicking is fine here.
+        None => panic!("unable to find home directory"),
     }
 }
 
-/// Default output video filename format.
+/// Default output video filename format, for example: `2022-06-23T11:49:00`.
 fn default_format() -> String {
     String::from("%Y-%m-%dT%H:%M:%S")
 }
@@ -132,9 +125,13 @@ pub struct Config {
     #[serde(default = "default_format")]
     pub format: String,
 
-    /// Enable Date&Time video overlay.
+    /// Date&Time video overlay.
     #[serde(default)]
     pub overlay: bool,
+
+    /// Disable colored output.
+    #[serde(skip_deserializing, default)]
+    pub no_color: bool,
 
     /// Mute standard output.
     #[serde(default)]
@@ -154,38 +151,34 @@ impl Default for Config {
             directory: default_directory(),
             format: default_format(),
             overlay: false,
+            no_color: false,
             quiet: false,
         }
     }
 }
 
 impl Config {
-    /// Parse configuration from config file.
-    pub fn parse() -> Self {
+    /// Parse configuration from config file, return Err on error.
+    pub fn parse() -> Result<Self, ErrorKind> {
         if let Some(base_dirs) = BaseDirs::new() {
             // Fetch the environment variables for BOMBUSCV_CONFIG to hold a custom path to store
             // the configuration file.
-            let config_file = fs::read_to_string(match env::var("BOMBUSCV_CONFIG") {
-                // BOMBUSCV_CONFIG env variable set, so expand home and use it as the config.
-                Ok(path) => expand_home(Path::new(&path)),
-                // BOMBUSCV_CONFIG env variable unset or invalid: use default config file location.
-                Err(_) => base_dirs
-                    .config_dir() // XDG base spec directories: ~/.config/bomsucv/config.toml
-                    .join(Path::new("bombuscv/config.toml")),
-            })
-            .unwrap_or_default(); // On Err variant, return empty string (==> default config).
+            let config_file = if let Ok(path) = env::var("BOMBUSCV_CONFIG") {
+                expand_home(Path::new(&path))
+            } else {
+                // XDG base spec directories: ~/.config/bomsucv/config.toml
+                base_dirs
+                    .config_dir()
+                    .join(Path::new("bombuscv/config.toml"))
+            };
 
-            // Parse toml configuration file.
-            toml::from_str(&config_file).unwrap_or_else(|e| {
-                // Configuration parsing failed: print error and use defaults.
-                eprintln!("error [config]: {e}");
-                println!("warning [config]: using defaults");
-                Config::default()
-            })
+            // On Err variant, return empty string (=> default config).
+            let config = fs::read_to_string(config_file).unwrap_or_default();
+
+            // Deserialize toml configuration file into Config.
+            toml::from_str(&config).map_err(|e| ErrorKind::BrokenConfig(e.to_string()))
         } else {
-            eprintln!("error [config]: no valid config path found on the system");
-            println!("warning [config]: using defaults");
-            Config::default()
+            Err(ErrorKind::ConfigNotFound)
         }
     }
 
@@ -199,25 +192,20 @@ impl Config {
             self.format = format;
         }
 
+        if args.no_color {
+            self.no_color = true;
+        }
+
         if args.quiet {
             self.quiet = true;
         }
 
-        // Input is video: disable overlay and warn the user that video feed resolution and
-        // framerate are used in place of those specified in the config file.
+        // Input is video: disable overlay.
         if let Some(video) = args.video {
             self.video = Some(video);
             if self.overlay {
                 self.overlay = false;
-                eprintln!("warning [config]: ignoring `overlay` while using `video` option.");
             }
-            if !self.quiet {
-                println!(
-                    "info [config]: using `video` original `resolution` and `framerate`, \
-                    ignoring eventually specified values."
-                );
-            }
-            return self;
         }
 
         if let Some(index) = args.index {

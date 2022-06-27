@@ -14,9 +14,18 @@
 // You should have received a copy of the GNU General Public License along with
 // this program. If not, see https://www.gnu.org/licenses/.
 //
+//!
 //! # BombusCV
-//! OpenCV based motion detection/recording software built for research on bumblebees.
+//!
+//! Motion detection & video recording software based on **OpenCV**, built for research on
+//! **Bumblebees** (hence the name).
 
+pub mod args;
+pub mod color;
+pub mod config;
+pub mod error;
+
+use crate::error::ErrorKind;
 use chrono::{DateTime, Local};
 use opencv::{
     core::{absdiff, Point, Scalar, Size, Vector, BORDER_CONSTANT, BORDER_DEFAULT, CV_8UC3},
@@ -31,56 +40,8 @@ use opencv::{
         CAP_FFMPEG, CAP_PROP_FPS, CAP_PROP_FRAME_HEIGHT, CAP_PROP_FRAME_WIDTH, CAP_V4L2,
     },
 };
-use std::{error::Error, fmt::Display, os::raw::c_char, path::Path, process};
-
-/// OpenCV related errors.
-#[derive(Debug)]
-pub enum FrameError {
-    EmptyFrame,
-}
-
-/// Implement Error trait for FrameError enum.
-impl Error for FrameError {
-    fn description(&self) -> &str {
-        match *self {
-            FrameError::EmptyFrame => "empty frame",
-        }
-    }
-}
-
-/// Implement Display trait for FrameError enum.
-impl Display for FrameError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match *self {
-            FrameError::EmptyFrame => write!(f, "error: empty frame"),
-        }
-    }
-}
-
-/// Trait implementations for resolution conversions.
-pub trait ResConversion {
-    fn from_str(res: &str) -> Self;
-}
-
-impl ResConversion for Size {
-    /// Convert from string to opencv::core::Size using the standard 16:9 formats.
-    fn from_str(res: &str) -> Self {
-        match res {
-            "480p" => Size::new(854, 480),
-            "576p" => Size::new(1024, 576),
-            "720p" => Size::new(1280, 720),
-            "768p" => Size::new(1366, 768),
-            "900p" => Size::new(1600, 900),
-            "1080p" => Size::new(1920, 1080),
-            "1440p" => Size::new(2560, 1440),
-            "2160p" => Size::new(3840, 2160),
-            res => {
-                eprintln!("error: {res} is not a supported resolution");
-                process::exit(1);
-            }
-        }
-    }
-}
+// use opencv::highgui;
+use std::{os::raw::c_char, path::Path};
 
 /// Video codecs.
 pub enum Codec {
@@ -93,22 +54,23 @@ pub enum Codec {
 impl Codec {
     /// Return the fourcc value associated to the video codec.
     fn fourcc(&self) -> i32 {
+        // If no fourcc code can be obtained, video processing can't start, so it's fine to panic.
         match *self {
             Codec::MJPG => {
                 VideoWriter::fourcc('M' as c_char, 'J' as c_char, 'P' as c_char, 'G' as c_char)
-                    .expect("unable to generate MJPG fourcc")
+                    .expect("unable to generate MJPG fourcc code")
             }
             Codec::XVID => {
                 VideoWriter::fourcc('X' as c_char, 'V' as c_char, 'I' as c_char, 'D' as c_char)
-                    .expect("unable to generate XVID fourcc")
+                    .expect("unable to generate XVID fourcc code")
             }
             Codec::MP4V => {
                 VideoWriter::fourcc('m' as c_char, 'p' as c_char, '4' as c_char, 'v' as c_char)
-                    .expect("unable to generate MP4V fourcc")
+                    .expect("unable to generate MP4V fourcc code")
             }
             Codec::H264 => {
                 VideoWriter::fourcc('h' as c_char, '2' as c_char, '6' as c_char, '4' as c_char)
-                    .expect("unable to generate H264 fourcc")
+                    .expect("unable to generate H264 fourcc code")
             }
         }
     }
@@ -131,7 +93,6 @@ pub struct Frame {
 /// * quiet: mute standard output
 pub struct Grabber {
     cap: VideoCapture,
-    quiet: bool,
 }
 
 impl Grabber {
@@ -148,7 +109,7 @@ impl Grabber {
     ///
     /// Wherever the requested video capture parameters (height, width, fps) are not available for
     /// the given video capture device, OpenCV selects the closest available values.
-    pub fn new(index: i32, height: i32, width: i32, fps: i32, quiet: bool) -> Self {
+    pub fn new(index: i32, height: i32, width: i32, fps: i32) -> Result<Self, ErrorKind> {
         // Generate Vector of VideoCapture parameters.
         let params = Vector::from_slice(&[
             CAP_PROP_FRAME_WIDTH,
@@ -156,16 +117,14 @@ impl Grabber {
             CAP_PROP_FRAME_HEIGHT,
             height,
             CAP_PROP_FPS,
-            fps
+            fps,
         ]);
 
         // Construct the VideoCapture object.
-        let cap = VideoCapture::new_with_params(index, CAP_V4L2, &params).unwrap_or_else(|e| {
-            eprintln!("error: unable to open camera '{e}'");
-            process::exit(1);
-        });
-
-        Self { cap, quiet }
+        match VideoCapture::new_with_params(index, CAP_V4L2, &params) {
+            Ok(cap) => Ok(Self { cap }),
+            Err(_) => Err(ErrorKind::InvalidCameraIndex),
+        }
     }
 
     /// Create an instance of the grabber from a video file input.
@@ -173,30 +132,25 @@ impl Grabber {
     /// # Parameters
     /// * video: path of the video file
     /// * quiet: mute stdout output
-    pub fn from_file(video: &Path, quiet: bool) -> Self {
-        let video_path = video.to_str().unwrap();
+    pub fn from_file(video: &Path) -> Result<Self, ErrorKind> {
+        let video_path = video.to_str().expect("invalid UTF-8 video path");
 
-        let cap = VideoCapture::from_file(video_path, CAP_FFMPEG).unwrap_or_else(|e| {
-            eprintln!("error: unable to open video file `{video_path}` '{e}'");
-            process::exit(1);
-        });
-
-        Self { cap, quiet }
+        match VideoCapture::from_file(video_path, CAP_FFMPEG) {
+            Ok(cap) => Ok(Self { cap }),
+            Err(_) => Err(ErrorKind::InvalidVideoFile),
+        }
     }
 
-
     pub fn get_height(&self) -> i32 {
-        self.cap.get(CAP_PROP_FRAME_HEIGHT).unwrap_or_else(|e| {
-            eprintln!("error: unable to retrieve frame width '{e}'");
-            process::exit(1);
-        }) as i32
+        self.cap
+            .get(CAP_PROP_FRAME_HEIGHT)
+            .expect("unable to retrieve capture frame height") as i32
     }
 
     pub fn get_width(&self) -> i32 {
-        self.cap.get(CAP_PROP_FRAME_WIDTH).unwrap_or_else(|e| {
-            eprintln!("error: unable to retrieve capture width '{e}'");
-            process::exit(1);
-        }) as i32
+        self.cap
+            .get(CAP_PROP_FRAME_WIDTH)
+            .expect("unable to retrieve capture frame width") as i32
     }
 
     /// Return video capture frame Size.
@@ -206,23 +160,22 @@ impl Grabber {
 
     /// Return video capture framerate.
     pub fn get_fps(&self) -> f64 {
-        self.cap.get(CAP_PROP_FPS).unwrap_or_else(|e| {
-            eprintln!("error: unable to retrieve capture fps '{e}'");
-            process::exit(1);
-        })
+        self.cap
+            .get(CAP_PROP_FPS)
+            .expect("unable to retrieve capture fps")
     }
 
     /// Grab video frame from camera and return it.
-    pub fn grab(&mut self) -> Frame {
+    pub fn grab(&mut self) -> Result<Frame, ErrorKind> {
         // Capture frame.
         let mut frame = Mat::default();
-        if self.cap.read(&mut frame).is_err() && !self.quiet {
-            println!("warning: cap frame dropped")
-        }
-
-        Frame {
-            frame,
-            datetime: Local::now(),
+        if self.cap.read(&mut frame).is_ok() {
+            Ok(Frame {
+                frame,
+                datetime: Local::now(),
+            })
+        } else {
+            Err(ErrorKind::FrameDropped)
         }
     }
 }
@@ -230,9 +183,7 @@ impl Grabber {
 /// Implement Drop trait for the Grabber struct to release the VideoCapture on Grabber drop.
 impl Drop for Grabber {
     fn drop(&mut self) {
-        if self.cap.release().is_err() {
-            println!("error: unable to release VideoCapture");
-        };
+        self.cap.release().expect("unable to release VideoCapture");
     }
 }
 
@@ -264,18 +215,20 @@ impl MotionDetector {
     /// Receive grabbed frame and detect motion and returns:
     /// - `Ok`: if `Some(Frame)` motion detected; if `None` no motion detected.
     /// - `Err`: `frame` was empty and could not be processed.
-    pub fn detect_motion(&mut self, frame: Frame) -> Result<Option<Frame>, FrameError> {
+    pub fn detect_motion(&mut self, frame: Frame) -> Result<Option<Frame>, ErrorKind> {
         // Create the resized_frame.
         let mut resized_frame = Mat::default();
+
         // Create two helper frames that will be used for image processing.
         let mut frame_one = Mat::default();
         let mut frame_two = Mat::default();
+
         // Contours must be C++ vector of vectors: std::vector<std::vector<cv::Point>>.
         let mut contours: Vector<Vector<Point>> = Vector::default();
 
-        // If frame is empty return with error.
+        // If frame is empty return with Err.
         if frame.frame.empty() {
-            return Err(FrameError::EmptyFrame);
+            return Err(ErrorKind::EmptyFrame);
         }
 
         // Downscale input frame (to 640x480) to reduce noise & computational weight.
@@ -288,10 +241,15 @@ impl MotionDetector {
             0.,
             INTER_LINEAR,
         )
-        .unwrap();
+        .expect("frame resizing failed");
 
         // Calculate absolute difference of pixel values.
-        absdiff(&self.prev_frame, &resized_frame, &mut frame_one).expect("error: absdiff failed");
+        absdiff(&self.prev_frame, &resized_frame, &mut frame_one).expect("absdiff failed");
+
+        // HELP: this are for graphical example
+        // highgui::imshow("bombuscv", &frame_one).unwrap();
+        // highgui::wait_key(1).unwrap();
+
         // Update the previous frame.
         self.prev_frame = resized_frame;
 
@@ -302,7 +260,7 @@ impl MotionDetector {
             COLOR_BGR2GRAY, // Color space conversion code (see #ColorConversionCodes).
             0, // Number of channels in the destination image; if the parameter is 0, the number of the channels is derived automatically from src and code.
         )
-        .expect("error: cvt_color failed");
+        .expect("cvt_color failed");
 
         // Apply gaussian blur
         gaussian_blur(
@@ -313,46 +271,43 @@ impl MotionDetector {
             21.,             // Gaussian kernel standard deviation in y direction.
             BORDER_DEFAULT,
         )
-        .expect("error: gaussian_blur failed");
+        .expect("gaussian_blur failed");
 
         // Apply threshold.
         threshold(
-            &frame_two,
-            &mut frame_one,
+            &frame_one,
+            &mut frame_two,
             30.,           // Threshold value.
             255., // Maximum value to use with the #THRESH_BINARY and #THRESH_BINARY_INV thresholding types.
             THRESH_BINARY, // Thresholding type (see #ThresholdType).
         )
-        .expect("error: threshold failed");
+        .expect("threshold failed");
 
         // Dilate image.
         dilate(
-            &frame_one,
-            &mut frame_two,
+            &frame_two,
+            &mut frame_one,
             &Mat::default(), // Structuring element used for dilation; If elemenat=Mat(), a 3 x 3 rectangular structuring element is used.
             Point::new(-1, -1), // Position of the anchor within the element; default value (-1, -1) means that the anchor is at the element center.
             3,                  // Number of times dilation is applied.
             BORDER_CONSTANT,    // Pixel extrapolation method, see #BorderTypes.
             morphology_default_border_value().unwrap(), // Border value in case of a constant border.
         )
-        .expect("error: dilate failed");
+        .expect("dilate failed");
 
         // Find contours.
         find_contours(
-            &frame_two,
+            &frame_one,
             &mut contours, // Detected contours. Each contour is stored as a vector of points (e.g. std::vector<std::vectorcv::Point >).
             RETR_EXTERNAL, // Contour retrieval mode, see #RetrievalModes.
             CHAIN_APPROX_SIMPLE, // Contour approximation method, see #ContourApproximationModes.
             Point::new(0, 0), // Optional offset by which every contour point is shifted.
         )
-        .expect("error: find_contours failed");
-
-        // TEST: uncomment the following line to test the changes in the detector parameters.
-        // println!("{}", contours.len());
+        .expect("find_contours failed");
 
         // Count contours in the processed frame.
         Ok(match contours.is_empty() {
-            // No motion was found.
+            // No motion was detected.
             true => None,
             // Motion was found, return original video frame.
             false => Some(frame),
@@ -369,7 +324,6 @@ impl MotionDetector {
 pub struct Writer {
     writer: VideoWriter,
     overlay: bool,
-    quiet: bool,
 }
 
 impl Writer {
@@ -387,57 +341,48 @@ impl Writer {
         fps: f64,
         size: Size,
         overlay: bool,
-        quiet: bool,
-    ) -> Self {
+    ) -> Result<Self, ErrorKind> {
         // Construct the VideoWriter object.
-        let writer =
-            VideoWriter::new(video_path, codec.fourcc(), fps, size, true).unwrap_or_else(|e| {
-                eprintln!("error: unable to create video writer '{e}'");
-                process::exit(1);
-            });
-
-        Self {
-            writer,
-            overlay,
-            quiet,
+        match VideoWriter::new(video_path, codec.fourcc(), fps, size, true) {
+            Ok(writer) => Ok(Self { writer, overlay }),
+            Err(_) => Err(ErrorKind::InvalidOutput),
         }
     }
 
     /// Write passed frame to the video file.
-    pub fn write(&mut self, mut frame: Frame) {
+    pub fn write(&mut self, mut frame: Frame) -> Result<(), ErrorKind> {
         // Add date&time overlay.
         if self.overlay
             && put_text(
                 &mut frame.frame,
                 &frame.datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
-                Point { x: 10, y: 40 }, // Bottom-left corner of the text string in the image.
-                FONT_HERSHEY_DUPLEX,    // Font type, see #hersheyfonts.
+                Point::new(10, 40), // Bottom-left corner of the text string in the image.
+                FONT_HERSHEY_DUPLEX, // Font type, see #hersheyfonts.
                 1., // Font scale factor that is multiplied by the font-specific base size.
                 Scalar::new(255., 255., 255., 1.), // Text color.
                 2,  // Thickness.
-                LineTypes::FILLED as i32, // Linetype.
+                LineTypes::LINE_8 as i32, // Linetype.
                 // true -> image data origin bottom-left corner
                 // false -> top-left corner.
                 false,
             )
             .is_err()
-            && !self.quiet
         {
-            println!("warning: unable to print text overlay")
-        };
+            return Err(ErrorKind::TextOverlayFail);
+        }
 
         // Write frame to video file.
-        if self.writer.write(&frame.frame).is_err() && !self.quiet {
-            println!("warning: frame dropped");
+        if self.writer.write(&frame.frame).is_err() {
+            return Err(ErrorKind::FrameDropped);
         }
+
+        Ok(())
     }
 }
 
 /// Implement Drop trait for the Writer struct to release the VideoWriter on Writer drop.
 impl Drop for Writer {
     fn drop(&mut self) {
-        if self.writer.release().is_err() {
-            println!("error: unable to release VideoWriter");
-        };
+        self.writer.release().expect("unable to release VideoWriter");
     }
 }
