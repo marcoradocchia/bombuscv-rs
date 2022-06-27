@@ -65,7 +65,7 @@ pub struct Args {
 
     /// Video capture frame width.
     #[clap(short = 'W', long, action = Set)]
-    pub width: Option<u16>, 
+    pub width: Option<u16>,
 
     /// Video capture framerate.
     #[clap(short, long, action = Set)]

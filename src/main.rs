@@ -104,7 +104,10 @@ fn main() -> io::Result<()> {
             ("==> Framerate", grabber.get_fps().to_string()),
             ("==> Printing overlay", format!("{}", config.overlay)),
             ("==> Output video file", filename.clone()),
-            ("==> Frame size", format!("{}x{}", grabber.get_width(), grabber.get_height())),
+            (
+                "==> Frame size",
+                format!("{}x{}", grabber.get_width(), grabber.get_height()),
+            ),
         ];
 
         for msg in messages {

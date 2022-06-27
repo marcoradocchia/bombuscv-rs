@@ -383,6 +383,8 @@ impl Writer {
 /// Implement Drop trait for the Writer struct to release the VideoWriter on Writer drop.
 impl Drop for Writer {
     fn drop(&mut self) {
-        self.writer.release().expect("unable to release VideoWriter");
+        self.writer
+            .release()
+            .expect("unable to release VideoWriter");
     }
 }

@@ -1,7 +1,7 @@
 use crate::{Codec, Config, Grabber, Local, MotionDetector, Path, Writer};
 use bombuscv_rs::Frame;
 use directories::BaseDirs;
-use std::{time::Instant, fs};
+use std::{fs, time::Instant};
 
 #[test]
 fn sync_frame_processing_avg_time() {
@@ -54,7 +54,8 @@ fn sync_frame_processing_avg_time() {
             config.width.into(),
             config.framerate.into(),
         ),
-    }.unwrap();
+    }
+    .unwrap();
 
     // Instance of the motion detector.
     let mut detector = MotionDetector::new();
@@ -66,7 +67,8 @@ fn sync_frame_processing_avg_time() {
         grabber.get_fps(),
         grabber.get_size(),
         config.overlay,
-    ).unwrap();
+    )
+    .unwrap();
 
     // Print config options if config.quiet is false.
     if !config.quiet {
@@ -90,7 +92,7 @@ fn sync_frame_processing_avg_time() {
                     detected_frames += 1;
                 }
             }
-            Err(_) => panic!("not enaugh frames to run the test!")
+            Err(_) => panic!("not enaugh frames to run the test!"),
         }
     }
 
