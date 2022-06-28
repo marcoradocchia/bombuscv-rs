@@ -102,12 +102,12 @@ fn main() -> io::Result<()> {
         let messages = vec![
             ("==> Input", input),
             ("==> Framerate", grabber.get_fps().to_string()),
-            ("==> Printing overlay", format!("{}", config.overlay)),
-            ("==> Output video file", filename.clone()),
             (
                 "==> Frame size",
                 format!("{}x{}", grabber.get_width(), grabber.get_height()),
             ),
+            ("==> Printing overlay", format!("{}", config.overlay)),
+            ("==> Output video file", filename.clone()),
         ];
 
         for msg in messages {
