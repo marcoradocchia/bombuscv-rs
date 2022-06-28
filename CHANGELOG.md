@@ -25,7 +25,7 @@ Updated
 
 - Dependency `ffprobe`: pre-recorded video *resolution* and *framerate*,
   required to construct the `VideoWriter`, are now obtained using **OpenCV**'s
-  `VideoCapture` getters methods;
+  `VideoCapture` getters methods.
 
 ## [0.2.0] - 2022-06-14
 
