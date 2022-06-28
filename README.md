@@ -63,7 +63,8 @@ https://user-images.githubusercontent.com/74802223/171311278-c5caf303-832f-46f6-
 
 </div>
 
-More examples can be found on [YouTube](https://www.youtube.com/channel/UCkSjz-EAjhEvtUcY-ruYkrA).
+More examples can be found at the [BombusCV YouTube
+channel](https://www.youtube.com/channel/UCkSjz-EAjhEvtUcY-ruYkrA).
 
 ## Install
 
