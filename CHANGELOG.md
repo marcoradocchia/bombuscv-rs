@@ -1,10 +1,18 @@
 # Changelog
 
-## [Unreleased] <!-- 0.3.0 -->
+## [0.3.0] - 2022-06-27
 
 Updated
 [README](https://github.com/marcoradocchia/bombuscv-rs/blob/master/README.md)
 *Use case*, *Install*, *Usage* and *Configuration* sections.
+
+### Added
+
+- Colored output with `no-color` CLI option to disable it.
+
+### Fixed
+
+- Bug in motion detection preventing it from working as expected.
 
 ### Changed
 
