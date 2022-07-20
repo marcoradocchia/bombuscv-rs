@@ -20,6 +20,9 @@ on **Bumblebees** (hence the name).
 - [Use case](#use-case)
 - [Examples](#examples)
 - [Install](#install)
+  -[Requirements](#requirements)
+  -[Cargo](#cargo)
+  -[Install on RaspberryPi 4](#install-on-raspberrypi-4)
 - [Usage](#usage)
 - [Configuration](#configuration)
 - [Changelog](#changelog)
@@ -79,7 +82,7 @@ from source make sure to also install OpenCV dependencies), although it should
 work with precompiled packages in your distro's repositories (it has been
 tested with success on *ArchLinux* with the `extra/opencv` package).
 
-### Using Cargo
+### Cargo
 
 A package is available at [crates.io](https://crates.io/crates/bombuscv-rs). In
 order to install it run `cargo install bombuscv-rs` in your shell[^4].
