@@ -44,6 +44,7 @@ use opencv::{
 use std::{os::raw::c_char, path::Path};
 
 /// Video codecs.
+#[derive(Debug)]
 pub enum Codec {
     MJPG,
     XVID,
@@ -58,21 +59,18 @@ impl Codec {
         match *self {
             Codec::MJPG => {
                 VideoWriter::fourcc('M' as c_char, 'J' as c_char, 'P' as c_char, 'G' as c_char)
-                    .expect("unable to generate MJPG fourcc code")
             }
             Codec::XVID => {
                 VideoWriter::fourcc('X' as c_char, 'V' as c_char, 'I' as c_char, 'D' as c_char)
-                    .expect("unable to generate XVID fourcc code")
             }
             Codec::MP4V => {
                 VideoWriter::fourcc('m' as c_char, 'p' as c_char, '4' as c_char, 'v' as c_char)
-                    .expect("unable to generate MP4V fourcc code")
             }
             Codec::H264 => {
                 VideoWriter::fourcc('h' as c_char, '2' as c_char, '6' as c_char, '4' as c_char)
-                    .expect("unable to generate H264 fourcc code")
             }
         }
+        .unwrap_or_else(|_| panic!("unable to generate {:?} fourcc code", self))
     }
 }
 
@@ -81,6 +79,7 @@ impl Codec {
 /// # Fields
 /// * frame: the video frame itself
 /// * datetime: DateTime object representing the instant
+#[derive(Debug)]
 pub struct Frame {
     pub frame: Mat,
     pub datetime: DateTime<Local>,
@@ -191,6 +190,7 @@ impl Drop for Grabber {
 ///
 /// # Fields
 /// * prev_frame: previous frame to make comparisons
+#[derive(Debug)]
 pub struct MotionDetector {
     prev_frame: Mat,
 }
@@ -352,8 +352,24 @@ impl Writer {
     /// Write passed frame to the video file.
     pub fn write(&mut self, mut frame: Frame) -> Result<(), ErrorKind> {
         // Add date&time overlay.
-        if self.overlay
-            && put_text(
+        if self.overlay {
+            // Text border.
+            let border = put_text(
+                &mut frame.frame,
+                &frame.datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
+                Point::new(10, 40), // Bottom-left corner of the text string in the image.
+                FONT_HERSHEY_DUPLEX, // Font type, see #hersheyfonts.
+                1., // Font scale factor that is multiplied by the font-specific base size.
+                Scalar::new(0., 0., 0., 1.), // Text color.
+                8,  // Thickness.
+                LineTypes::LINE_8 as i32, // Linetype.
+                // true -> image data origin bottom-left corner
+                // false -> top-left corner.
+                false,
+            );
+
+            // Text body.
+            let text = put_text(
                 &mut frame.frame,
                 &frame.datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
                 Point::new(10, 40), // Bottom-left corner of the text string in the image.
@@ -365,10 +381,11 @@ impl Writer {
                 // true -> image data origin bottom-left corner
                 // false -> top-left corner.
                 false,
-            )
-            .is_err()
-        {
-            return Err(ErrorKind::TextOverlayFail);
+            );
+
+            if border.is_err() || text.is_err() {
+                return Err(ErrorKind::TextOverlayErr);
+            }
         }
 
         // Write frame to video file.

@@ -34,7 +34,7 @@ pub enum ErrorKind {
     /// Occurs when VideoCapture returns an empty frame.
     EmptyFrame,
     /// Occurs when VideoWriter fails to print text overlay on video frame.
-    TextOverlayFail,
+    TextOverlayErr,
 }
 
 impl Display for ErrorKind {
@@ -48,7 +48,7 @@ impl Display for ErrorKind {
             Self::InvalidOutput => Some("unable to open video output file".to_string()),
             Self::FrameDropped => None,
             Self::EmptyFrame => Some("empty video frame".to_string()),
-            Self::TextOverlayFail => Some("unable to print text overlay".to_string()),
+            Self::TextOverlayErr => Some("unable to print text overlay".to_string()),
         }
         .unwrap_or_default()
         .fmt(f)
