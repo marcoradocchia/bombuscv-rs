@@ -1,63 +1,108 @@
-#!/usr/bin/env sh
+#!/bin/bash
 
+# Colored output.
 RED="\e[1;31m"
 YELLOW="\e[1;33m"
 GREEN="\e[1;32m"
 CYAN="\e[1;36m"
 NORM="\e[0m"
 
-echo "$YELLOW██████╗  ██████╗ ███╗   ███╗██████╗ ██╗   ██╗███████╗ ██████╗██╗   ██╗"
-echo        "██╔══██╗██╔═══██╗████╗ ████║██╔══██╗██║   ██║██╔════╝██╔════╝██║   ██║"
-echo   "$NORM██████╔╝██║   ██║██╔████╔██║██████╔╝██║   ██║███████╗██║     ██║   ██║"
-echo        "██╔══██╗██║   ██║██║╚██╔╝██║██╔══██╗██║   ██║╚════██║██║     ╚██╗ ██╔╝"
-echo "$YELLOW██████╔╝╚██████╔╝██║ ╚═╝ ██║██████╔╝╚██████╔╝███████║╚██████╗ ╚████╔╝ "
-echo        "╚═════╝  ╚═════╝ ╚═╝     ╚═╝╚═════╝  ╚═════╝ ╚══════╝ ╚═════╝  ╚═══╝  $NORM"
-
+# Swap file path on RaspberryPi OS.
 SWAP_FILE=/etc/dphys-swapfile
+
+print_welcome=true
+do_update=true
+
+usage() 
+{
+  printf "Usage: $0 [OPTIONS]\n\n"
+  printf "OPTIONS:\n"
+  printf "  -h  Print help information\n"
+  printf "  -m  Mute welcome message\n"
+  printf "  -u  Prevent script from updating the system\n"
+}
 
 greet ()
 {
-  echo "$CYAN#######################################################"
-  echo      "## Congratulations! BombusCV successfully installed! ##"
-  echo      "#######################################################$NORM"
+  printf "$CYAN#######################################################\n"
+  printf      "## Congratulations! BombusCV successfully installed! ##\n"
+  printf      "#######################################################\n$NORM"
 }
 
-echo "$CYAN#####################################################################"
-echo      "## Installation helper script for bombuscv-rs (by Marco Radocchia) ##"
-echo      "## Requirement: RaspberryPi 4 (4/8GB), RaspberryPi OS aarch64      ##"
-echo      "## Warning: the installation process may take a while (>1h)...     ##"
-echo      "#####################################################################$NORM"
+# Print error message and exit.
+exit_msg()
+{
+  printf $RED"==> Error:$NORM $1.\n"
+  exit 1
+}
+
+welcome_msg()
+{
+  printf "$YELLOW██████╗  ██████╗ ███╗   ███╗██████╗ ██╗   ██╗███████╗ ██████╗██╗   ██╗\n"
+  printf        "██╔══██╗██╔═══██╗████╗ ████║██╔══██╗██║   ██║██╔════╝██╔════╝██║   ██║\n"
+  printf   "$NORM██████╔╝██║   ██║██╔████╔██║██████╔╝██║   ██║███████╗██║     ██║   ██║\n"
+  printf        "██╔══██╗██║   ██║██║╚██╔╝██║██╔══██╗██║   ██║╚════██║██║     ╚██╗ ██╔╝\n"
+  printf "$YELLOW██████╔╝╚██████╔╝██║ ╚═╝ ██║██████╔╝╚██████╔╝███████║╚██████╗ ╚████╔╝ \n"
+  printf        "╚═════╝  ╚═════╝ ╚═╝     ╚═╝╚═════╝  ╚═════╝ ╚══════╝ ╚═════╝  ╚═══╝  \n\n$NORM"
+
+  printf "$CYAN#####################################################################\n"
+  printf      "## Installation helper script for bombuscv-rs (by Marco Radocchia) ##\n"
+  printf      "## Warning: the installation process may take a while (>1h)...     ##\n"
+  printf      "#####################################################################\n\n$NORM"
+}
+
+# Get CLI options/arguments.
+while getopts "m?h?u?" opt; do
+  case $opt in
+    m) # Mute welcome message.
+      print_welcome=false
+      ;;
+    u) # Prevent script from updating the system.
+      do_update=false
+      ;;
+    h) # Print help information.
+      usage && exit 0
+      ;;
+  esac
+done
+
+# Print welcome message unless -m option specified.
+[ $print_welcome = true ] && welcome_msg
 
 # Check if Raspberry Pi is running RaspberryPi OS 64 bits:
 [ $(uname -m) != "aarch64" -o $(command -v apt-get | wc -l) != 1 ] && \
-  echo "$RED==> Error:$NORM please install RaspberryPi OS 64 bits and retry." && \
-  exit 1
+  exit_msg "please install RaspberryPi OS 64 bits and retry"
 
 # Check if Raspberry is at least 4GB RAM.
 [ $(free --mebi | grep -e "^Mem:" | awk '{print $2}') -lt 3000 ] && \
-  echo "$RED==> Error:$NORM required at least 4GB of RAM." && exit 1
+  exit_msg "required at least 4GB of RAM"
 
 # Update the system.
-echo "$GREEN==> Updating the system...$NORM"
-sudo apt-get -y update && sudo apt-get -y upgrade
+[ $do_update = true ] && {
+  printf "$GREEN==> Updating the system...$NORM\n"
+  sudo apt-get -y update && sudo apt-get -y upgrade
+}
 
 # Update bootloader.
-echo "$GREEN==> Updating bootloader...$NORM"
+printf "$GREEN==> Updating bootloader...$NORM\n"
 sudo rpi-eeprom-update -a
 
 # Bring gpu memory up to 256MB.
-echo "$GREEN==> Increasing gpu memory...$NORM"
+printf "$GREEN==> Increasing gpu memory...$NORM\n"
 sudo sed -i /boot/config.txt -e s'/gpu_mem=.*/gpu_mem=256/'
 
 # Increasing swap size.
-echo "$GREEN==> Increasing swap size...$NORM"
+printf "$GREEN==> Increasing swap size...$NORM\n"
 # storing the original swap size for later restore
 orig_swap=$(awk -F'=' '/CONF_SWAPSIZE=/ {print $2}' $SWAP_FILE)
 sudo sed -i $SWAP_FILE -e s'/CONF_SWAPSIZE=.*/CONF_SWAPSIZE=4096/'
 sudo /etc/init.d/dphys-swapfile restart
 
+# Enable legacy camera support with raspi-config in non-interactive mode.
+sudo raspi-config nonint do_legacy 0
+
 # Install all dependencies with apt-get.
-echo "$GREEN==> Installing dependencies...$NORM"
+printf "$GREEN==> Installing dependencies...$NORM\n"
 sudo apt-get install -y \
   clang \
   libclang-dev \
@@ -109,7 +154,7 @@ rm opencv_contrib.zip
 cd opencv && mkdir build && cd build
 
 # Compile OpenCV 4.6.0.
-echo "$GREEN==> Compiling OpenCV v4.6.0...$NORM"
+printf "$GREEN==> Compiling OpenCV v4.6.0...$NORM\n"
 # run cmake
 cmake -DCMAKE_BUILD_TYPE=RELEASE \
 -DCMAKE_INSTALL_PREFIX=/usr/local \
@@ -156,7 +201,7 @@ cmake -DCMAKE_BUILD_TYPE=RELEASE \
 make -j4
 
 # Install OpenCV 4.6.0
-echo "$GREEN==> Installing OpenCV v4.6.0...$NORM"
+printf "$GREEN==> Installing OpenCV v4.6.0...$NORM\n"
 sudo make install
 sudo ldconfig
 
@@ -164,27 +209,41 @@ sudo ldconfig
 cd $HOME
 
 # Remove opencv source directories.
-echo "$GREEN==> Removing OpenCV files...$NORM"
+printf "$GREEN==> Removing OpenCV files...$NORM\n"
 rm -rf $HOME/opencv
 rm -rf $HOME/opencv_contrib
 
-# Install rustup.
-echo "$GREEN==> Installing rustup...$NORM"
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+# Install rustup if cargo isn't on system.
+[ command -v cargo ] || {
+  printf "$GREEN==> Installing rustup...$NORM\n"
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+}
 
 # Cargo install bombuscv-rs if rustup successfully installed cargo.
-if [ $? = 0 ]; then 
-  echo "$GREEN==> Installing bombuscv-rs...$NORM"
-  $HOME/.cargo/bin/cargo install bombuscv-rs && greet
+if [ command -v cargo ]; then 
+  printf "$GREEN==> Installing bombuscv-rs...$NORM\n"
+  $HOME/.cargo/bin/cargo install bombuscv-rs
 else
-  echo "$RED==> Error:$NORM unable to install rustup, please retry."
+  exit_msg "unable to install rustup, please retry"
 fi
 
 # Restoring swap size
-echo "$GREEN==> Restoring swap size...$NORM"
+printf "$GREEN==> Restoring swap size...$NORM"
 sudo sed -i $SWAP_FILE -e s"/CONF_SWAPSIZE=.*/CONF_SWAPSIZE=$orig_swap/"
 sudo /etc/init.d/dphys-swapfile restart
 
-echo "$CYAN#################################################"
-echo      "## Please reboot your system before continung. ##"
-echo      "#################################################$NORM"
+printf $GREEN"Please reboot your system before continung. Reboot now? [N/y]\n"
+printf $GREEN"==> "$NORM
+
+# Check if binary is installed successfully & greet if so.
+command -v bombuscv > /dev/null && greet
+
+read selection # Read standard input.
+case $selection in
+  Y|y)
+    systemctl reboot
+    ;;
+  *)
+    printf $YELLOW"==> Warning:$NORM changes will only be applied at next reboot\n"
+    ;;
+esac
