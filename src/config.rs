@@ -29,31 +29,28 @@ use std::{
 pub fn expand_home(path: &Path) -> PathBuf {
     if let Ok(path) = path.strip_prefix("~") {
         // Generate the absolute path for HOME.
-        let home = match BaseDirs::new() {
-            Some(base_dirs) => base_dirs.home_dir().to_path_buf(),
-            // No $HOME directories could be determined, so panicking is fine here.
-            None => panic!("unable to find home directory"),
-        };
-        // Insert the absolute HOME path at the beginning of the path.
-        home.join(path)
+        BaseDirs::new()
+            .expect("unable to find home directory")
+            .home_dir()
+            .to_path_buf()
+            .join(path)
     } else {
         path.to_path_buf()
     }
 }
 
-/// Custom deserializer for `directory` field: automatically expands ~ and creates PathBuf.
-fn deserialize_directory<'de, D>(d: D) -> Result<PathBuf, D::Error>
+/// Custom deserializer for `directory` field.
+/// Automatically expands ~ and creates directory if doesn't exist.
+fn deserialize_directory<'de, D>(directory: D) -> Result<PathBuf, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let path = expand_home(&PathBuf::deserialize(d)?);
-    if path.is_dir() {
-        Ok(path)
-    } else {
-        Err(de::Error::custom(
-            "specified `directory` option is not a valid path",
-        ))
+    let path = expand_home(&PathBuf::deserialize(directory)?);
+    if !path.is_dir() && fs::create_dir_all(&path).is_err() {
+        return Err(de::Error::custom("unable to create specified directory"));
     }
+
+    Ok(path)
 }
 
 /// Default value for /dev/video<index> capture camera index.
@@ -78,11 +75,11 @@ fn default_framerate() -> u8 {
 
 /// Default output video directory.
 fn default_directory() -> PathBuf {
-    match BaseDirs::new() {
-        Some(base_dirs) => base_dirs.home_dir().to_path_buf(),
-        // No base directories could be determined, so panicking is fine here.
-        None => panic!("unable to find home directory"),
-    }
+    // No base directories could be determined, so panicking is fine here.
+    BaseDirs::new()
+        .expect("unable to find HOME directory")
+        .home_dir()
+        .to_path_buf()
 }
 
 /// Default output video filename format, for example: `2022-06-23T11:49:00`.

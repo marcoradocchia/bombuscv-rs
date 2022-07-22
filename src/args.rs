@@ -17,18 +17,20 @@
 use crate::config::expand_home;
 use clap::ArgAction::{Set, SetTrue};
 pub use clap::Parser;
-use std::path::PathBuf;
+use std::{fs, path::PathBuf};
 
-/// Parse output video directory.
+/// Custom parser for `directory` field.
+/// Automatically expands ~ and creates directory if doesn't exist.
 pub fn parse_directory(directory: &str) -> Result<PathBuf, String> {
-    let directory = expand_home(&PathBuf::from(directory));
-    match directory.is_dir() {
-        true => Ok(directory),
-        false => Err(String::from("the given path is not a directory")),
+    let path = expand_home(&PathBuf::from(directory));
+    if !path.is_dir() && fs::create_dir_all(&path).is_err() {
+        return Err(String::from("unable to create specified directory"));
     }
+
+    Ok(path)
 }
 
-/// Parse input video path.
+/// Custom parser for `video` field.
 fn parse_video(video: &str) -> Result<PathBuf, String> {
     let video = expand_home(&PathBuf::from(video));
     match video.is_file() {
