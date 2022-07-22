@@ -24,9 +24,9 @@ usage()
 
 greet ()
 {
-  printf "$CYAN#######################################################\n"
-  printf      "## Congratulations! BombusCV successfully installed! ##\n"
-  printf      "#######################################################\n$NORM"
+  printf "$CYAN\n#######################################################\n"
+  printf        "## Congratulations! BombusCV successfully installed! ##\n"
+  printf        "#######################################################\n$NORM"
 }
 
 # Print error message and exit.
@@ -70,11 +70,12 @@ done
 [ $print_welcome = true ] && welcome_msg
 
 # Check if Raspberry Pi is running RaspberryPi OS 64 bits:
-[ $(uname -m) != "aarch64" -o $(command -v apt-get | wc -l) != 1 ] && \
+command -v apt-get > /dev/null
+[ $(uname -m) != "aarch64" -o $? = 1 ] && \
   exit_msg "please install RaspberryPi OS 64 bits and retry"
 
 # Check if Raspberry is at least 4GB RAM.
-[ $(free --mebi | grep -e "^Mem:" | awk '{print $2}') -lt 3000 ] && \
+[ $(free --mebi | awk '/^Mem:/ {print $2}') -lt 3000 ] && \
   exit_msg "required at least 4GB of RAM"
 
 # Update the system.
@@ -197,7 +198,7 @@ cmake -DCMAKE_BUILD_TYPE=RELEASE \
 -DENABLE_PYLINT=OFF \
 -DENABLE_FLAKE8=OFF \
 ..
-# run make using all 4 cores
+# Run make (compile) using all 4 cores.
 make -j4
 
 # Install OpenCV 4.6.0
@@ -214,13 +215,14 @@ rm -rf $HOME/opencv
 rm -rf $HOME/opencv_contrib
 
 # Install rustup if cargo isn't on system.
-[ command -v cargo ] || {
+command -v cargo > /dev/null || {
   printf "$GREEN==> Installing rustup...$NORM\n"
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 }
 
 # Cargo install bombuscv-rs if rustup successfully installed cargo.
-if [ command -v cargo ]; then 
+command -v cargo > /dev/null
+if [ $? = 0 ]; then 
   printf "$GREEN==> Installing bombuscv-rs...$NORM\n"
   $HOME/.cargo/bin/cargo install bombuscv-rs
 else
