@@ -10,8 +10,9 @@ NORM="\e[0m"
 # Swap file path on RaspberryPi OS.
 SWAP_FILE=/etc/dphys-swapfile
 
-print_welcome=true
+do_print_welcome=true
 do_update=true
+do_ask_reboot=true
 
 usage() 
 {
@@ -20,6 +21,23 @@ usage()
   printf "  -h  Print help information\n"
   printf "  -m  Mute welcome message\n"
   printf "  -u  Prevent script from updating the system\n"
+  printf "  -r  Prevent script from asking for reboot\n"
+}
+
+ask_reboot() 
+{
+  printf $GREEN"Please reboot your system before continung. Reboot now? [N/y]\n"
+  printf $GREEN"==> "$NORM
+
+  read selection # Read standard input.
+  case $selection in
+    Y|y)
+      systemctl reboot
+      ;;
+    *)
+      printf $YELLOW"==> Warning:$NORM changes will only be applied at next reboot\n"
+      ;;
+  esac
 }
 
 greet ()
@@ -52,13 +70,16 @@ welcome_msg()
 }
 
 # Get CLI options/arguments.
-while getopts "m?h?u?" opt; do
+while getopts "m?h?u?r?" opt; do
   case $opt in
     m) # Mute welcome message.
-      print_welcome=false
+      do_print_welcome=false
       ;;
     u) # Prevent script from updating the system.
       do_update=false
+      ;;
+    r) # Prevent script from asking for reboot.
+      do_ask_reboot=false
       ;;
     h) # Print help information.
       usage && exit 0
@@ -67,7 +88,7 @@ while getopts "m?h?u?" opt; do
 done
 
 # Print welcome message unless -m option specified.
-[ $print_welcome = true ] && welcome_msg
+[ $do_print_welcome = true ] && welcome_msg
 
 # Check if Raspberry Pi is running RaspberryPi OS 64 bits:
 command -v apt-get > /dev/null
@@ -234,18 +255,8 @@ printf "$GREEN==> Restoring swap size...$NORM"
 sudo sed -i $SWAP_FILE -e s"/CONF_SWAPSIZE=.*/CONF_SWAPSIZE=$orig_swap/"
 sudo /etc/init.d/dphys-swapfile restart
 
-printf $GREEN"Please reboot your system before continung. Reboot now? [N/y]\n"
-printf $GREEN"==> "$NORM
-
 # Check if binary is installed successfully & greet if so.
 command -v bombuscv > /dev/null && greet
 
-read selection # Read standard input.
-case $selection in
-  Y|y)
-    systemctl reboot
-    ;;
-  *)
-    printf $YELLOW"==> Warning:$NORM changes will only be applied at next reboot\n"
-    ;;
-esac
+# Ask for reboot unless -r option specified.
+[ $do_ask_reboot = true ] && ask_reboot
