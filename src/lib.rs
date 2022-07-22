@@ -361,7 +361,7 @@ impl Writer {
                 FONT_HERSHEY_DUPLEX, // Font type, see #hersheyfonts.
                 1., // Font scale factor that is multiplied by the font-specific base size.
                 Scalar::new(0., 0., 0., 1.), // Text color.
-                8,  // Thickness.
+                4,  // Thickness.
                 LineTypes::LINE_8 as i32, // Linetype.
                 // true -> image data origin bottom-left corner
                 // false -> top-left corner.
