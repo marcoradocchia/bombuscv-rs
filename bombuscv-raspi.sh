@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# TODO: detect if script is being run as root and error if so.
+
 # Colored output.
 RED="\e[1;31m"
 YELLOW="\e[1;33m"
@@ -68,6 +70,8 @@ welcome_msg()
   printf      "## Warning: the installation process may take a while (>1h)...     ##\n"
   printf      "#####################################################################\n\n$NORM"
 }
+
+[ $USER = root ] && exit_msg "please don't run the script as root, run as normal user"
 
 # Get CLI options/arguments.
 while getopts "m?h?u?r?" opt; do
