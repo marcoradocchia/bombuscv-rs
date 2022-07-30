@@ -56,6 +56,8 @@ fn main() -> io::Result<()> {
     }
     .override_with_args(args);
 
+    dbg!(&config);
+
     // Format video file path as <config.directory/date&time>.
     let filename = Local::now()
         .format(
@@ -126,6 +128,7 @@ fn main() -> io::Result<()> {
         grabber.get_fps(),
         grabber.get_size(),
         config.overlay,
+        config.overlay_border,
     ) {
         Ok(writer) => writer,
         Err(e) => {

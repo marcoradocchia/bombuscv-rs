@@ -262,7 +262,7 @@ impl MotionDetector {
         )
         .expect("cvt_color failed");
 
-        // Apply gaussian blur
+        // Apply gaussian blur.
         gaussian_blur(
             &frame_two,
             &mut frame_one,
@@ -324,6 +324,7 @@ impl MotionDetector {
 pub struct Writer {
     writer: VideoWriter,
     overlay: bool,
+    overlay_border: u8,
 }
 
 impl Writer {
@@ -341,10 +342,15 @@ impl Writer {
         fps: f64,
         size: Size,
         overlay: bool,
+        overlay_border: u8,
     ) -> Result<Self, ErrorKind> {
         // Construct the VideoWriter object.
         match VideoWriter::new(video_path, codec.fourcc(), fps, size, true) {
-            Ok(writer) => Ok(Self { writer, overlay }),
+            Ok(writer) => Ok(Self {
+                writer,
+                overlay,
+                overlay_border,
+            }),
             Err(_) => Err(ErrorKind::InvalidOutput),
         }
     }
@@ -361,7 +367,7 @@ impl Writer {
                 FONT_HERSHEY_DUPLEX, // Font type, see #hersheyfonts.
                 1., // Font scale factor that is multiplied by the font-specific base size.
                 Scalar::new(0., 0., 0., 1.), // Text color.
-                4,  // Thickness.
+                (2 + self.overlay_border).into(),  // Thickness.
                 LineTypes::LINE_8 as i32, // Linetype.
                 // true -> image data origin bottom-left corner
                 // false -> top-left corner.

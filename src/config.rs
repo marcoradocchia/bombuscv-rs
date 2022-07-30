@@ -87,6 +87,11 @@ fn default_format() -> String {
     String::from("%Y-%m-%dT%H:%M:%S")
 }
 
+/// Default value for Date&Time overlay border.
+fn default_overlay_border() -> u8 {
+    3
+}
+
 /// Configuration options.
 #[derive(Deserialize, Debug)]
 pub struct Config {
@@ -126,6 +131,10 @@ pub struct Config {
     #[serde(default)]
     pub overlay: bool,
 
+    /// Date&Time video overlay border.
+    #[serde(default = "default_overlay_border")]
+    pub overlay_border: u8,
+
     /// Disable colored output.
     #[serde(skip_deserializing, default)]
     pub no_color: bool,
@@ -148,6 +157,7 @@ impl Default for Config {
             directory: default_directory(),
             format: default_format(),
             overlay: false,
+            overlay_border: default_overlay_border(),
             no_color: false,
             quiet: false,
         }
