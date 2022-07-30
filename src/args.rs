@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License along with
 // this program. If not, see https://www.gnu.org/licenses/.
 
-use crate::config::expand_home;
+use crate::{config::expand_home, Codec};
 use clap::ArgAction::{Set, SetTrue};
 pub use clap::Parser;
 use std::{fs, path::PathBuf};
@@ -28,6 +28,17 @@ pub fn parse_directory(directory: &str) -> Result<PathBuf, String> {
     }
 
     Ok(path)
+}
+
+/// Custom parser for `codec` field.
+pub fn parse_codec(codec: &str) -> Result<Codec, String> {
+    Ok(match codec {
+        "h264" => Codec::H264,
+        "mjpg" => Codec::MJPG,
+        "xvid" => Codec::XVID,
+        "mp4v" => Codec::MP4V,
+        _ => return Err("unsupported codec".to_string()),
+    })
 }
 
 /// Custom parser for `video` field.
@@ -72,6 +83,15 @@ pub struct Args {
     /// Video capture framerate.
     #[clap(short, long, action = Set)]
     pub framerate: Option<u8>,
+
+    /// Video codec.
+    #[clap(
+        short,
+        long,
+        possible_values = ["h264", "mjpg", "xvid", "mp4v"],
+        value_parser = parse_codec
+    )]
+    pub codec: Option<Codec>,
 
     /// Output video directory.
     #[clap(short, long, value_parser = parse_directory)]

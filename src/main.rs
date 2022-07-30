@@ -21,7 +21,7 @@ use bombuscv_rs::{
     args::{Args, Parser},
     color::{Colorizer, MsgType},
     config::Config,
-    Codec, Grabber, MotionDetector, Writer,
+    Grabber, MotionDetector, Writer,
 };
 use chrono::Local;
 use signal_hook::{consts::SIGINT, flag::register};
@@ -55,8 +55,6 @@ fn main() -> io::Result<()> {
         }
     }
     .override_with_args(args);
-
-    dbg!(&config);
 
     // Format video file path as <config.directory/date&time>.
     let filename = Local::now()
@@ -109,7 +107,10 @@ fn main() -> io::Result<()> {
                 format!("{}x{}", grabber.get_width(), grabber.get_height()),
             ),
             ("==> Printing overlay", format!("{}", config.overlay)),
-            ("==> Output video file", filename.clone()),
+            (
+                "==> Output video file",
+                format!("{} ({})", filename, config.codec),
+            ),
         ];
 
         for msg in messages {
@@ -124,7 +125,7 @@ fn main() -> io::Result<()> {
     // Instance of the frame writer.
     let writer = match Writer::new(
         &filename,
-        Codec::XVID,
+        &config.codec,
         grabber.get_fps(),
         grabber.get_size(),
         config.overlay,

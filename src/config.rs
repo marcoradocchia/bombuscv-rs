@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License along with
 // this program. If not, see https://www.gnu.org/licenses/.
 
-use crate::{args::Args, error::ErrorKind};
+use crate::{args::Args, error::ErrorKind, Codec};
 use directories::BaseDirs;
 use serde::{de, Deserialize, Deserializer};
 use std::{
@@ -53,6 +53,21 @@ where
     Ok(path)
 }
 
+/// Custom deserializer for `codec` field.
+fn deserialize_codec<'de, D>(codec: D) -> Result<Codec, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let codec = String::deserialize(codec)?;
+    Ok(match codec.as_str() {
+        "h264" => Codec::H264,
+        "mjpg" => Codec::MJPG,
+        "xvid" => Codec::XVID,
+        "mp4v" => Codec::MP4V,
+        _ => return Err(de::Error::custom("unsupported codec")),
+    })
+}
+
 /// Default value for /dev/video<index> capture camera index.
 fn default_index() -> u8 {
     0
@@ -71,6 +86,11 @@ fn default_width() -> u16 {
 /// Default value for video capture framerate.
 fn default_framerate() -> u8 {
     60
+}
+
+/// Default video codec.
+fn default_codec() -> Codec {
+    Codec::H264
 }
 
 /// Default output video directory.
@@ -115,6 +135,10 @@ pub struct Config {
     #[serde(default = "default_framerate")]
     pub framerate: u8,
 
+    /// Video codec.
+    #[serde(default = "default_codec", deserialize_with = "deserialize_codec")]
+    pub codec: Codec,
+
     /// Output video directory.
     #[serde(
         default = "default_directory",
@@ -154,6 +178,7 @@ impl Default for Config {
             height: default_height(),
             width: default_width(),
             framerate: default_framerate(),
+            codec: default_codec(),
             directory: default_directory(),
             format: default_format(),
             overlay: false,
@@ -229,6 +254,10 @@ impl Config {
 
         if let Some(framerate) = args.framerate {
             self.framerate = framerate;
+        }
+
+        if let Some(codec) = args.codec {
+            self.codec = codec;
         }
 
         if args.overlay {

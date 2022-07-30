@@ -107,7 +107,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/marcorado
 ## Usage
 
 ```
-bombuscv-rs 0.3.0
+bombuscv-rs 0.4.0
 Marco Radocchia <marco.radocchia@outlook.com>
 OpenCV based motion detection/recording software built for research on bumblebees.
 
@@ -115,6 +115,7 @@ USAGE:
     bombuscv [OPTIONS]
 
 OPTIONS:
+    -c, --codec <CODEC>            Video codec [possible values: h264, mjpg, xvid, mp4v]
     -d, --directory <DIRECTORY>    Output video directory
     -f, --framerate <FRAMERATE>    Video capture framerate
         --format <FORMAT>          Output video filename format (see
@@ -170,6 +171,8 @@ width = 640
 height = 480
 # video capture framerate
 framerate = 30
+# video codec [possible values: "h264", "mjpg", "xvid", "mp4v"]
+codec = "h264"
 # date&time video overlay
 overlay = true
 # date&time video overlay border

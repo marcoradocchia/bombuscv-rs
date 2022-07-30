@@ -41,10 +41,10 @@ use opencv::{
     },
 };
 // use opencv::highgui;
-use std::{os::raw::c_char, path::Path};
+use std::{fmt::Display, os::raw::c_char, path::Path};
 
 /// Video codecs.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Codec {
     MJPG,
     XVID,
@@ -71,6 +71,18 @@ impl Codec {
             }
         }
         .unwrap_or_else(|_| panic!("unable to generate {:?} fourcc code", self))
+    }
+}
+
+impl Display for Codec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::MJPG => "MJPG",
+            Self::XVID => "XVID",
+            Self::MP4V => "MP4V",
+            Self::H264 => "H.264",
+        }
+        .fmt(f)
     }
 }
 
@@ -338,7 +350,7 @@ impl Writer {
     /// * quiet: mute stdout output
     pub fn new(
         video_path: &str,
-        codec: Codec,
+        codec: &Codec,
         fps: f64,
         size: Size,
         overlay: bool,
@@ -367,7 +379,7 @@ impl Writer {
                 FONT_HERSHEY_DUPLEX, // Font type, see #hersheyfonts.
                 1., // Font scale factor that is multiplied by the font-specific base size.
                 Scalar::new(0., 0., 0., 1.), // Text color.
-                (2 + self.overlay_border).into(),  // Thickness.
+                (2 + self.overlay_border).into(), // Thickness.
                 LineTypes::LINE_8 as i32, // Linetype.
                 // true -> image data origin bottom-left corner
                 // false -> top-left corner.

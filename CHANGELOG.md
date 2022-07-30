@@ -4,11 +4,12 @@
 
 Updated 
 [README](https://github.com/marcoradocchia/bombuscv-rs/blob/master/README.md)
-*Configuration* section.
+*Configuration* and *Usage* section.
 
 ### Added
 
-- Configuration option to specify *Date&Time* overlay border.
+- Configuration option to specify *Date&Time overlay border*.
+- Configuration and CLI options to specify *video codec*.
 
 ### Changed
 
