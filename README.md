@@ -172,6 +172,8 @@ height = 480
 framerate = 30
 # date&time video overlay
 overlay = true
+# date&time video overlay border
+overlay_border = 2
 ```
 
 ## Changelog

@@ -1,5 +1,20 @@
 # Changelog
 
+## [Unreleased]
+
+Updated 
+[README](https://github.com/marcoradocchia/bombuscv-rs/blob/master/README.md)
+*Configuration* section.
+
+### Added
+
+- Configuration option to specify *Date&Time* overlay border.
+
+### Changed
+
+- Create `directory` (as specified in CLI option or configuration file) if it
+  doesn't exist, rather than using default configuration.
+
 ## [0.3.0] - 2022-06-27
 
 Updated
